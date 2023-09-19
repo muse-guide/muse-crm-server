@@ -1,35 +1,78 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import {InternalServerErrorException, NotFoundException} from "../common/exceptions";
+import {Exhibition} from "../model/exhibition.model";
+import * as DynamoDB from 'aws-sdk/clients/dynamodb';
 
-const REGION = process.env.AWS_REGION;
-const IT_TEST = process.env.IT_TEST;
+export class DynamoClient<T extends Record<string, any>> {
+    tableName: string;
+    partitionKey: string
+    sortKey?: string
+    docClient: DynamoDB.DocumentClient;
 
-const marshallOptions = {
-    convertEmptyValues: false,
-    removeUndefinedValues: false,
-    convertClassInstanceToMap: false,
-};
+    constructor(tableName: string, partitionKey: string, sortKey?: string, region?: string) {
+        this.docClient = new DynamoDB.DocumentClient({
+            region,
+            httpOptions: {
+                timeout: 2200,
+                connectTimeout: 2200,
+            },
+            maxRetries: 10,
+        });
+        this.tableName = tableName
+        this.partitionKey = partitionKey
+        this.sortKey = sortKey
+    }
 
-const unmarshallOptions = {
-    wrapNumbers: false,
-};
+    private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {
+        if (this.sortKey && sortKeyValue) return {
+            [this.partitionKey]: partitionKeyValue,
+            [this.sortKey]: sortKeyValue
+        }
+        else return {
+            [this.partitionKey]: partitionKeyValue
+        }
+    }
 
-const translateConfig = { marshallOptions, unmarshallOptions };
+    async getItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
 
-const ddbClient = new DynamoDBClient(
-    IT_TEST
-        ? {
-              endpoint: "http://localhost:8000",
-              region: "local",
-              credentials: {
-                  accessKeyId: "test",
-                  secretAccessKey: "test",
-              },
-          }
-        : {
-              region: REGION,
-          }
-);
-const ddbDocClient = DynamoDBDocumentClient.from(ddbClient, translateConfig);
+        const result = await this.docClient.get({
+            TableName: this.tableName,
+            Key: this.resolveKey(partitionKeyValue, sortKeyValue),
+        }).promise();
 
-export { ddbDocClient };
+        if (result.Item == undefined) {
+            throw new NotFoundException(`Item with id: ${partitionKeyValue} not found for in table: ${this.tableName}`)
+        }
+        return result.Item as T;
+    }
+
+    async createItem(item: T): Promise<T> {
+        const result = await this.docClient.put({
+            TableName: this.tableName,
+            Item: {...item},
+        }).promise();
+
+        if (result.Attributes == undefined) {
+            throw new InternalServerErrorException(`Could not create item in table ${this.tableName}`)
+        }
+        return result.Attributes as T;
+    }
+
+    async deleteItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
+        const result = await this.docClient.delete({
+            TableName: this.tableName,
+            Key: this.resolveKey(partitionKeyValue, sortKeyValue),
+            ReturnValues: 'ALL_OLD'
+        }).promise();
+
+        if (result.Attributes == undefined) {
+            throw new NotFoundException(`Item with id: ${partitionKeyValue} not found for in table: ${this.tableName}`)
+        }
+        return result.Attributes as T;
+    }
+}
+
+const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
+const EXHIBITION_TABLE_PARTITION_KEY = "id"
+const EXHIBITION_TABLE_SORT_KEY = "customerId"
+
+export const exhibitionTable = new DynamoClient<Exhibition>(EXHIBITION_TABLE_NAME, EXHIBITION_TABLE_PARTITION_KEY, EXHIBITION_TABLE_SORT_KEY)
