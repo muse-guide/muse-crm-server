@@ -1,6 +1,7 @@
-import {InternalServerErrorException, NotFoundException} from "../common/exceptions";
+import {NotFoundException} from "../common/exceptions";
 import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
+import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
 
 export class DynamoClient<T extends Record<string, any>> {
     tableName: string;
@@ -45,16 +46,11 @@ export class DynamoClient<T extends Record<string, any>> {
         return result.Item as T;
     }
 
-    async createItem(item: T): Promise<T> {
+    async createItem(item: T) {
         const result = await this.docClient.put({
             TableName: this.tableName,
             Item: {...item},
         }).promise();
-
-        if (result.Attributes == undefined) {
-            throw new InternalServerErrorException(`Could not create item in table ${this.tableName}`)
-        }
-        return result.Attributes as T;
     }
 
     async deleteItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
@@ -75,4 +71,9 @@ const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
 const EXHIBITION_TABLE_PARTITION_KEY = "id"
 const EXHIBITION_TABLE_SORT_KEY = "customerId"
 
+const EXHIBITION_SNAPSHOT_TABLE_NAME = process.env.EXHIBITION_SNAPSHOT_TABLE_NAME!!
+const EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY = "id"
+const EXHIBITION_SNAPSHOT_TABLE_SORT_KEY = "lang"
+
 export const exhibitionTable = new DynamoClient<Exhibition>(EXHIBITION_TABLE_NAME, EXHIBITION_TABLE_PARTITION_KEY, EXHIBITION_TABLE_SORT_KEY)
+export const exhibitionSnapshotTable = new DynamoClient<ExhibitionSnapshot>(EXHIBITION_SNAPSHOT_TABLE_NAME, EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY, EXHIBITION_SNAPSHOT_TABLE_SORT_KEY)

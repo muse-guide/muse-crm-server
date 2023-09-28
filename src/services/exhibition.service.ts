@@ -2,7 +2,7 @@ import {Exhibition} from "../model/exhibition.model";
 import {InternalServerErrorException, NotFoundException} from "../common/exceptions";
 import {DynamoClient, exhibitionTable} from "../clients/dynamo.client";
 
-class ExhibitionsService {
+class ExhibitionService {
 
     private exhibitionClient: DynamoClient<Exhibition>
 
@@ -23,7 +23,8 @@ class ExhibitionsService {
 
     async createExhibition(exhibition: Exhibition): Promise<Exhibition> {
         try {
-            return await this.exhibitionClient.createItem(exhibition)
+            await this.exhibitionClient.createItem(exhibition)
+            return exhibition
         } catch (err: unknown) {
             if (err instanceof InternalServerErrorException) {
                 throw new InternalServerErrorException(`Exhibition creation failed.`)
@@ -44,4 +45,4 @@ class ExhibitionsService {
     }
 }
 
-export const exhibitionService = new ExhibitionsService(exhibitionTable)
+export const exhibitionService = new ExhibitionService(exhibitionTable)

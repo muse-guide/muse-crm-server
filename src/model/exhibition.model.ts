@@ -1,6 +1,7 @@
 export interface Exhibition {
     id: string;
     customerId: string;
+    institutionId: string;
     referenceName: string;
     qrCodeUrl: string;
     includeInstitutionInfo: boolean;

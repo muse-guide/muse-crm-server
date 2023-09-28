@@ -7,6 +7,7 @@
     "@aws-sdk/lib-dynamodb": "^3.379.1",
     "@middy/core": "^4.6.1",
     "@middy/http-cors": "^4.6.1",
+    "@middy/http-json-body-parser": "^4.6.4",
     "@types/aws-lambda": "^8.10.119",
     "aws-lambda": "^1.0.7",
     "uuid": "^9.0.0",

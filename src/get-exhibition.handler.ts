@@ -1,5 +1,5 @@
 import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
-import {exhibitionService} from "./services/exhibitions.service";
+import {exhibitionService} from "./services/entity.service";
 import {handleError, responseFormatter} from "./common/response-formatter";
 import middy from "@middy/core";
 import cors from "@middy/http-cors";
@@ -14,7 +14,7 @@ const getExhibitionHandler = async (event: APIGatewayProxyEvent, context: Contex
         const exhibitionId = id.parse(event.pathParameters?.["id"])
         const customerId = id.parse(event.requestContext.authorizer?.claims.sub)
 
-        const exhibition = await exhibitionService.getExhibition(exhibitionId, customerId)
+        const exhibition = await exhibitionService.getEntity(exhibitionId, customerId)
         return responseFormatter(200, exhibition)
     } catch (err) {
         return handleError(err);
