@@ -1,5 +1,5 @@
 import {InternalServerErrorException, NotFoundException} from "../common/exceptions";
-import {DynamoClient, exhibitionSnapshotTable, exhibitionTable} from "../clients/dynamo.client";
+import {DynamoClient, exhibitionSnapshotTable, exhibitionTable, PaginatedResults} from "../clients/dynamo.client";
 import {Exhibition} from "../model/exhibition.model";
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
 
@@ -20,6 +20,10 @@ class EntityService<ENTITY extends Record<string, any>> {
             }
             throw err
         }
+    }
+
+    async getCustomerEntities(customerId: string, pageSize: number, nextPageKey?: string): Promise<PaginatedResults<ENTITY>> {
+        return await this.entityDbClient.getCustomerItems(customerId, pageSize, nextPageKey)
     }
 
     async createEntity(entity: ENTITY): Promise<ENTITY> {

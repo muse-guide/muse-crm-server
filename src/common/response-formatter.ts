@@ -9,7 +9,7 @@ export const responseFormatter = (statusCode: number, response: object) => {
     };
 };
 
-export const handleError = (err: unknown) => {
+export const restHandleError = (err: unknown) => {
     logger.error("Error:", err as Error);
     let errorResponse: BaseException = new InternalServerErrorException(err);
 
@@ -21,4 +21,18 @@ export const handleError = (err: unknown) => {
     }
 
     return errorResponse.formatResponse();
+}
+
+export const handleError = (err: unknown) => {
+    logger.error("Error:", err as Error);
+    let errorResponse: BaseException = new InternalServerErrorException(err);
+
+    if (err instanceof BaseException) {
+        errorResponse = err;
+    }
+    if (err instanceof ZodError) {
+        errorResponse = new BadRequestException(`Invalid request. Errors: [${err.errors.map(error => `path: ${error.path}, message: ${error.message}`).toString()}]`)
+    }
+
+    throw errorResponse
 }

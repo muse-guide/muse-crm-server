@@ -3,6 +3,12 @@ import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
 
+export interface PaginatedResults<T> {
+    items: T[],
+    count: number,
+    nextPageKey?: string | undefined
+}
+
 export class DynamoClient<T extends Record<string, any>> {
     tableName: string;
     partitionKey: string
@@ -21,16 +27,6 @@ export class DynamoClient<T extends Record<string, any>> {
         this.tableName = tableName
         this.partitionKey = partitionKey
         this.sortKey = sortKey
-    }
-
-    private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {
-        if (this.sortKey && sortKeyValue) return {
-            [this.partitionKey]: partitionKeyValue,
-            [this.sortKey]: sortKeyValue
-        }
-        else return {
-            [this.partitionKey]: partitionKeyValue
-        }
     }
 
     async getItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
@@ -53,6 +49,48 @@ export class DynamoClient<T extends Record<string, any>> {
         }).promise();
     }
 
+    async getCustomerItems(customerId: string, pageSize: number, nextPageKey?: string): Promise<PaginatedResults<T>> {
+        let queryResult;
+        let items: T[] = [];
+
+        const dbParams: DynamoDB.DocumentClient.QueryInput = {
+            TableName: this.tableName,
+            KeyConditionExpression: `${this.sortKey} = :customerId`,
+            ExpressionAttributeValues: {
+                ":customerId": customerId,
+            }
+        }
+
+        if (nextPageKey) {
+            dbParams.ExclusiveStartKey = JSON.parse(Buffer.from(nextPageKey, "base64").toString())
+        }
+
+        do {
+            queryResult = await this.docClient.query(dbParams).promise();
+            items = items.concat(queryResult.Items as T[]);
+            dbParams.ExclusiveStartKey = queryResult.LastEvaluatedKey;
+        } while (typeof queryResult.LastEvaluatedKey !== "undefined" && items.length < pageSize);
+
+        if (items.length > pageSize) {
+            const lastPrimaryKey = items[pageSize - 1][this.partitionKey]
+            const lastSortKey = this.sortKey ? items[pageSize - 1][this.sortKey] : undefined
+
+            items.splice(pageSize, items.length - pageSize)
+            queryResult.LastEvaluatedKey = this.resolveKey(lastPrimaryKey, lastSortKey)
+        }
+
+        const result: PaginatedResults<T> = {
+            items: items,
+            count: items.length,
+        };
+
+        if (queryResult.LastEvaluatedKey) {
+            result.nextPageKey = Buffer.from(JSON.stringify(queryResult.LastEvaluatedKey)).toString("base64")
+        }
+
+        return result
+    }
+
     async deleteItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
         const result = await this.docClient.delete({
             TableName: this.tableName,
@@ -64,6 +102,21 @@ export class DynamoClient<T extends Record<string, any>> {
             throw new NotFoundException(`Item with id: ${partitionKeyValue} not found for in table: ${this.tableName}`)
         }
         return result.Attributes as T;
+    }
+
+    private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {
+        if (this.sortKey && sortKeyValue) return {
+            [this.partitionKey]: partitionKeyValue,
+            [this.sortKey]: sortKeyValue
+        }
+        else return {
+            [this.partitionKey]: partitionKeyValue
+        }
+    }
+
+    private resolveExpression = (partitionKeyValue: string, sortKeyValue?: string): string => {
+        if (this.sortKey && sortKeyValue) return `${this.partitionKey} = ${partitionKeyValue} AND ${this.sortKey} = ${sortKeyValue}`
+        else return `${this.partitionKey} = ${partitionKeyValue}`
     }
 }
 

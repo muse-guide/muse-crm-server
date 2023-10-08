@@ -1,11 +1,10 @@
 import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
 import {exhibitionService} from "./services/entity.service";
-import {handleError, responseFormatter} from "./common/response-formatter";
+import {responseFormatter, restHandleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import cors from "@middy/http-cors";
 import {injectLambdaContext} from "@aws-lambda-powertools/logger";
 import {logger} from "./common/logger";
-import {z} from "zod";
 import {id} from "./common/validation";
 
 const getExhibitionHandler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
@@ -17,11 +16,10 @@ const getExhibitionHandler = async (event: APIGatewayProxyEvent, context: Contex
         const exhibition = await exhibitionService.getEntity(exhibitionId, customerId)
         return responseFormatter(200, exhibition)
     } catch (err) {
-        return handleError(err);
+        return restHandleError(err);
     }
 };
 
 export const handler = middy(getExhibitionHandler);
 handler
     .use(cors())
-    .use(injectLambdaContext(logger, {logEvent: true}));

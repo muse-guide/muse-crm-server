@@ -1,9 +1,7 @@
-import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
-import {handleError, responseFormatter} from "./common/response-formatter";
+import {Context} from 'aws-lambda';
+import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import cors from "@middy/http-cors";
-import {injectLambdaContext} from "@aws-lambda-powertools/logger";
 import {logger} from "./common/logger";
 import {z} from "zod";
 import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
@@ -17,26 +15,25 @@ const exhibitionSchema = z.object({
     qrCodeUrl: z.string().min(1).max(64),
     referenceName: z.string().min(1).max(64),
     includeInstitutionInfo: z.boolean(),
-    langOptions: z.array(z.object({
+    langOptions: z.object({
         lang: z.string().length(2),
         title: z.string().min(1).max(64),
         subtitle: z.string().min(1).max(64),
         description: z.string().min(1).max(256).optional(),
-    })).nonempty(),
-    images: z.array(z.object({
+    }).array().nonempty(),
+    images: z.object({
         name: z.string().min(1).max(64),
         url: z.string().url()
-    }))
+    }).array()
 })
 
-const createExhibitionSnapshotHandler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+const createExhibitionSnapshotHandler = async (event: Exhibition): Promise<Exhibition> => {
     try {
-        logger.info(`Received request, path: ${event.path}, method: ${event.httpMethod}`)
-        const exhibition = exhibitionSchema.parse(event.body) as Exhibition
-
+        const exhibition = exhibitionSchema.parse(event) as Exhibition
         const institutionId = exhibition.includeInstitutionInfo ? exhibition.institutionId : undefined
         const langOptions = exhibition.langOptions.map(option => option.lang)
         const imageUrls = exhibition.images.map(image => image.url)
+
         const exhibitionSnapshots: Array<ExhibitionSnapshot> = exhibition.langOptions
             .map(langOption => {
                 return {
@@ -55,7 +52,9 @@ const createExhibitionSnapshotHandler = async (event: APIGatewayProxyEvent, cont
         const result = exhibitionSnapshots.map(async exhibitionSnapshot => {
             return await exhibitionSnapshotService.createEntity(exhibitionSnapshot)
         })
-        return responseFormatter(200, await Promise.all(result))
+        await Promise.all(result)
+
+        return exhibition
     } catch (err) {
         return handleError(err);
     }
@@ -63,6 +62,4 @@ const createExhibitionSnapshotHandler = async (event: APIGatewayProxyEvent, cont
 
 export const handler = middy(createExhibitionSnapshotHandler);
 handler
-    .use(cors())
-    .use(injectLambdaContext(logger, {logEvent: true}))
     .use(httpJsonBodyParser())

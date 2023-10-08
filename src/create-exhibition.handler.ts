@@ -1,10 +1,8 @@
-import {APIGatewayProxyEvent, APIGatewayProxyResult, Context} from 'aws-lambda';
+import {Context} from 'aws-lambda';
 import {exhibitionService} from "./services/entity.service";
-import {handleError, responseFormatter} from "./common/response-formatter";
+import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import cors from "@middy/http-cors";
-import {injectLambdaContext} from "@aws-lambda-powertools/logger";
 import {logger} from "./common/logger";
 import {id} from "./common/validation";
 import {Exhibition} from "./model/exhibition.model";
@@ -27,11 +25,11 @@ const createExhibitionSchema = z.object({
     }))
 })
 
-const createExhibitionHandler = async (event: APIGatewayProxyEvent, context: Context): Promise<APIGatewayProxyResult> => {
+const createExhibitionHandler = async (event: any): Promise<Exhibition> => {
     try {
         logger.info(`Received request, path: ${event.path}, method: ${event.httpMethod}`)
         const request = createExhibitionSchema.parse(event.body)
-        const customerId = id.parse(event.requestContext.authorizer?.claims.sub)
+        const customerId = id.parse(event.sub)
 
         const exhibition: Exhibition = {
             id: uuidv4(),
@@ -40,8 +38,7 @@ const createExhibitionHandler = async (event: APIGatewayProxyEvent, context: Con
             ...request
         }
 
-        const result = await exhibitionService.createEntity(exhibition)
-        return responseFormatter(200, result)
+        return await exhibitionService.createEntity(exhibition)
     } catch (err) {
         return handleError(err);
     }
@@ -49,6 +46,4 @@ const createExhibitionHandler = async (event: APIGatewayProxyEvent, context: Con
 
 export const handler = middy(createExhibitionHandler);
 handler
-    .use(cors())
-    .use(injectLambdaContext(logger, {logEvent: true}))
     .use(httpJsonBodyParser())
