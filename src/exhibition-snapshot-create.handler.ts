@@ -1,12 +1,10 @@
-import {Context} from 'aws-lambda';
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {logger} from "./common/logger";
 import {z} from "zod";
 import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
 import {Exhibition} from "./model/exhibition.model";
-import {exhibitionSnapshotService} from "./services/entity.service";
+import {exhibitionSnapshotService} from "./clients/entity.service";
 
 const exhibitionSchema = z.object({
     id: z.string().uuid(),
@@ -24,10 +22,11 @@ const exhibitionSchema = z.object({
     images: z.object({
         name: z.string().min(1).max(64),
         url: z.string().url()
-    }).array()
+    }).array(),
+    version: z.number().min(1)
 })
 
-const createExhibitionSnapshotHandler = async (event: Exhibition): Promise<Exhibition> => {
+const exhibitionSnapshotCreateHandler = async (event: Exhibition): Promise<Exhibition> => {
     try {
         const exhibition = exhibitionSchema.parse(event) as Exhibition
         const institutionId = exhibition.includeInstitutionInfo ? exhibition.institutionId : undefined
@@ -45,7 +44,8 @@ const createExhibitionSnapshotHandler = async (event: Exhibition): Promise<Exhib
                     subtitle: langOption.subtitle,
                     description: langOption.description,
                     imageUrls: imageUrls,
-                    exhibits: []
+                    exhibits: [],
+                    version: exhibition.version,
                 }
             })
 
@@ -60,6 +60,6 @@ const createExhibitionSnapshotHandler = async (event: Exhibition): Promise<Exhib
     }
 };
 
-export const handler = middy(createExhibitionSnapshotHandler);
+export const handler = middy(exhibitionSnapshotCreateHandler);
 handler
     .use(httpJsonBodyParser())

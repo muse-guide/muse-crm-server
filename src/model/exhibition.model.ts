@@ -1,13 +1,16 @@
 export interface Exhibition {
-    id: string;
-    customerId: string;
-    institutionId: string;
+    readonly id: string;
+    readonly customerId: string;
+    readonly institutionId: string;
     referenceName: string;
     qrCodeUrl: string;
     includeInstitutionInfo: boolean;
     langOptions: ExhibitionLang[];
     images: ImageRef[];
+    version: number;
 }
+
+export type ExhibitionUpdate = Partial<Omit<Exhibition, "id" | "customerId" | "institutionId" | "qrCodeUrl">>
 
 export interface ExhibitionLang {
     lang: string;

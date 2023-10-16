@@ -2,6 +2,9 @@ import {NotFoundException} from "../common/exceptions";
 import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
+import {logger} from "../common/logger";
+
+export type EntityStructure = { [key: string]: any; }
 
 export interface PaginatedResults<T> {
     items: T[],
@@ -91,17 +94,47 @@ export class DynamoClient<T extends Record<string, any>> {
         return result
     }
 
-    async deleteItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
+    async deleteItem(partitionKeyValue: string, sortKeyValue?: string) {
         const result = await this.docClient.delete({
             TableName: this.tableName,
             Key: this.resolveKey(partitionKeyValue, sortKeyValue),
-            ReturnValues: 'ALL_OLD'
+        }).promise();
+    }
+
+    async updateItem(entity: T): Promise<T> {
+        const key = this.resolveKey(entity[this.partitionKey], this.sortKey ? entity[this.sortKey] : undefined)
+        const version: number = entity.version
+        delete entity.version;
+        delete entity[this.partitionKey];
+        if (this.sortKey) delete entity[this.sortKey];
+
+        let updateExpression = 'SET #version = :newVersion, ';
+        let conditionExpression = '#version = :versionAtHand';
+        const expressionAttributeNames: EntityStructure = {"#version": "version"};
+        const expressionAttributeValues: EntityStructure = {":newVersion": Date.now(), ":versionAtHand": version};
+
+        Object.entries(entity)
+            .filter(([, value]) => typeof value !== 'undefined')
+            .forEach(([key, value], index, array) => {
+                updateExpression += `#${key} = :${key}`;
+                expressionAttributeNames[`#${key}`] = key;
+                expressionAttributeValues[`:${key}`] = value;
+
+                if (index !== array.length - 1) {
+                    updateExpression += ', ';
+                }
+            });
+
+        await this.docClient.update({
+            TableName: this.tableName,
+            Key: key,
+            UpdateExpression: updateExpression,
+            ExpressionAttributeNames: expressionAttributeNames,
+            ExpressionAttributeValues: expressionAttributeValues,
+            ConditionExpression: conditionExpression,
         }).promise();
 
-        if (result.Attributes == undefined) {
-            throw new NotFoundException(`Item with id: ${partitionKeyValue} not found for in table: ${this.tableName}`)
-        }
-        return result.Attributes as T;
+        return entity;
     }
 
     private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {

@@ -35,6 +35,12 @@ export class NotFoundException extends BaseException {
     }
 }
 
+export class ConcurrentUpdateException extends BaseException {
+    constructor(message: string, cause?: unknown) {
+        super(409, message, cause);
+    }
+}
+
 export class InternalServerErrorException extends BaseException {
 
     constructor(cause?: unknown);

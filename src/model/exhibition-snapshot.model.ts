@@ -1,17 +1,21 @@
-export interface ExhibitionSnapshot {
-    id: string;
+export interface ExhibitionSnapshotId {
+    readonly id: string;
+    readonly lang: string;
+}
+
+export interface ExhibitionSnapshot extends ExhibitionSnapshotId {
     institutionId?: string;
-    lang: string;
     langOptions: string[];
     title: string;
     subtitle: string;
     description?: string;
     imageUrls: string[];
     exhibits: ExhibitSnapshotPreview[];
+    version: number;
 }
 
 export interface ExhibitSnapshotPreview {
-    id: string;
+    readonly id: string;
     number: number;
     title: string;
     audioLength: number;

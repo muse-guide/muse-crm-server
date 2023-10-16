@@ -2,10 +2,10 @@ import {BadRequestException, BaseException, InternalServerErrorException} from "
 import {logger} from "./logger";
 import {ZodError} from "zod";
 
-export const responseFormatter = (statusCode: number, response: object) => {
+export const responseFormatter = (statusCode: number, response?: object) => {
     return {
         statusCode: statusCode,
-        body: JSON.stringify(response, (key, value) => (value instanceof Set ? [...value] : value))
+        body: response ? JSON.stringify(response, (key, value) => (value instanceof Set ? [...value] : value)) : ''
     };
 };
 

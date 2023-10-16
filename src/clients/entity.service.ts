@@ -1,7 +1,8 @@
-import {InternalServerErrorException, NotFoundException} from "../common/exceptions";
-import {DynamoClient, exhibitionSnapshotTable, exhibitionTable, PaginatedResults} from "../clients/dynamo.client";
+import {ConcurrentUpdateException, InternalServerErrorException, NotFoundException} from "../common/exceptions";
+import {DynamoClient, exhibitionSnapshotTable, exhibitionTable, PaginatedResults} from "./dynamo.client";
 import {Exhibition} from "../model/exhibition.model";
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
+import {ConditionalCheckFailedException} from "@aws-sdk/client-dynamodb";
 
 class EntityService<ENTITY extends Record<string, any>> {
 
@@ -44,6 +45,17 @@ class EntityService<ENTITY extends Record<string, any>> {
         } catch (err: unknown) {
             if (err instanceof NotFoundException) {
                 throw new NotFoundException(`Entity id: ${partitionKeyValue} not found.`)
+            }
+            throw err
+        }
+    }
+
+    async updateEntity(entity: ENTITY): Promise<ENTITY> {
+        try {
+            return await this.entityDbClient.updateItem(entity)
+        } catch (err: unknown) {
+            if (err instanceof ConditionalCheckFailedException) {
+                throw new ConcurrentUpdateException(`Concurrent update of entity.`)
             }
             throw err
         }
