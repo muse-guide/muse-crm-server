@@ -3,8 +3,9 @@ import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
 import {logger} from "../common/logger";
+import {EntityStructure} from "../model/common.model";
 
-export type EntityStructure = { [key: string]: any; }
+
 
 export interface PaginatedResults<T> {
     items: T[],
