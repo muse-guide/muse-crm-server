@@ -35,7 +35,7 @@ interface UpdateExhibitionOutput {
     imagesToUpdate: ImageRef[]
 }
 
-const updateExhibitionHandler = async (event: StateMachineInput): Promise<UpdateExhibitionOutput> => {
+const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<UpdateExhibitionOutput> => {
     try {
         const request = updateExhibitionSchema.parse(event.body)
         const exhibitionId = id.parse(event.path?.["id"])
@@ -88,7 +88,7 @@ const updateExhibitionHandler = async (event: StateMachineInput): Promise<Update
         const updateExhibitionSnapshotTxDeleteItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.langOptionsToDelete)
         const updateExhibitionSnapshotTxUpdateItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.langOptionsToUpdate)
 
-        client.inTransaction(
+        await client.inTransaction(
             ...updateExhibitionTxPutItems,
             ...updateExhibitionSnapshotTxPutItems,
             ...updateExhibitionSnapshotTxDeleteItems,
@@ -137,6 +137,6 @@ const getModifiedLImages = (arr1: ImageRef[], arr2: ImageRef[]) => {
     );
 }
 
-export const handler = middy(updateExhibitionHandler);
+export const handler = middy(updateExhibitionTxHandler);
 handler
     .use(httpJsonBodyParser())
