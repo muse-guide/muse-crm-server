@@ -5,6 +5,7 @@ import {z} from "zod";
 import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
 import {Exhibition} from "./model/exhibition.model";
 import {exhibitionSnapshotService} from "./clients/entity.service";
+import {EMPTY_STRING} from "./model/common.model";
 
 const exhibitionSchema = z.object({
     id: z.string().uuid(),
@@ -29,7 +30,7 @@ const exhibitionSchema = z.object({
 const exhibitionSnapshotCreateHandler = async (event: Exhibition): Promise<Exhibition> => {
     try {
         const exhibition = exhibitionSchema.parse(event) as Exhibition
-        const institutionId = exhibition.includeInstitutionInfo ? exhibition.institutionId : undefined
+        const institutionId = exhibition.includeInstitutionInfo ? exhibition.institutionId : EMPTY_STRING
         const langOptions = exhibition.langOptions.map(option => option.lang)
         const imageUrls = exhibition.images.map(image => image.url)
 
@@ -42,9 +43,8 @@ const exhibitionSnapshotCreateHandler = async (event: Exhibition): Promise<Exhib
                     langOptions: langOptions,
                     title: langOption.title,
                     subtitle: langOption.subtitle,
-                    description: langOption.description,
+                    description: langOption.description ?? EMPTY_STRING,
                     imageUrls: imageUrls,
-                    exhibits: [],
                     version: exhibition.version,
                 }
             })

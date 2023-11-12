@@ -2,9 +2,7 @@ import {NotFoundException} from "../common/exceptions";
 import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
 import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
-import {logger} from "../common/logger";
-import {EntityStructure} from "../model/common.model";
-
+import {EntityStructure} from "../model/table.model";
 
 
 export interface PaginatedResults<T> {
@@ -12,6 +10,14 @@ export interface PaginatedResults<T> {
     count: number,
     nextPageKey?: string | undefined
 }
+
+export const dynamoDocClient = new DynamoDB.DocumentClient({
+    httpOptions: {
+        timeout: 2200,
+        connectTimeout: 2200,
+    },
+    maxRetries: 10,
+});
 
 export class DynamoClient<T extends Record<string, any>> {
     tableName: string;
@@ -105,6 +111,7 @@ export class DynamoClient<T extends Record<string, any>> {
     async updateItem(entity: T): Promise<T> {
         const key = this.resolveKey(entity[this.partitionKey], this.sortKey ? entity[this.sortKey] : undefined)
         const version: number = entity.version
+        const newVersion: number = Date.now()
         delete entity.version;
         delete entity[this.partitionKey];
         if (this.sortKey) delete entity[this.sortKey];
@@ -112,7 +119,7 @@ export class DynamoClient<T extends Record<string, any>> {
         let updateExpression = 'SET #version = :newVersion, ';
         let conditionExpression = '#version = :versionAtHand';
         const expressionAttributeNames: EntityStructure = {"#version": "version"};
-        const expressionAttributeValues: EntityStructure = {":newVersion": Date.now(), ":versionAtHand": version};
+        const expressionAttributeValues: EntityStructure = {":newVersion": newVersion, ":versionAtHand": version};
 
         Object.entries(entity)
             .filter(([, value]) => typeof value !== 'undefined')
@@ -135,7 +142,11 @@ export class DynamoClient<T extends Record<string, any>> {
             ConditionExpression: conditionExpression,
         }).promise();
 
-        return entity;
+        return {
+            ...key,
+            ...entity,
+            version: newVersion,
+        };
     }
 
     private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {
@@ -154,13 +165,13 @@ export class DynamoClient<T extends Record<string, any>> {
     }
 }
 
-const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
-const EXHIBITION_TABLE_PARTITION_KEY = "id"
-const EXHIBITION_TABLE_SORT_KEY = "customerId"
+export const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
+export const EXHIBITION_TABLE_PARTITION_KEY = "id"
+export const EXHIBITION_TABLE_SORT_KEY = "customerId"
 
-const EXHIBITION_SNAPSHOT_TABLE_NAME = process.env.EXHIBITION_SNAPSHOT_TABLE_NAME!!
-const EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY = "id"
-const EXHIBITION_SNAPSHOT_TABLE_SORT_KEY = "lang"
+export const EXHIBITION_SNAPSHOT_TABLE_NAME = process.env.EXHIBITION_SNAPSHOT_TABLE_NAME!!
+export const EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY = "id"
+export const EXHIBITION_SNAPSHOT_TABLE_SORT_KEY = "lang"
 
 export const exhibitionTable = new DynamoClient<Exhibition>(EXHIBITION_TABLE_NAME, EXHIBITION_TABLE_PARTITION_KEY, EXHIBITION_TABLE_SORT_KEY)
 export const exhibitionSnapshotTable = new DynamoClient<ExhibitionSnapshot>(EXHIBITION_SNAPSHOT_TABLE_NAME, EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY, EXHIBITION_SNAPSHOT_TABLE_SORT_KEY)

@@ -1,6 +1,9 @@
-export interface Exhibition {
+export interface ExhibitionId {
     readonly id: string;
     readonly customerId: string;
+}
+
+export interface Exhibition extends ExhibitionId {
     readonly institutionId: string;
     referenceName: string;
     qrCodeUrl: string;

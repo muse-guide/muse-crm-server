@@ -1,7 +1,8 @@
-export type EntityStructure = { [key: string]: any; }
 export interface StateMachineInput {
     sub: string;
     path?: { [name: string]: string | undefined };
     querystring?: { [name: string]: string | undefined };
     body?: any;
 }
+
+export const EMPTY_STRING = ""

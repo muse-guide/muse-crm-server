@@ -10,7 +10,6 @@ export interface ExhibitionSnapshot extends ExhibitionSnapshotId {
     subtitle: string;
     description?: string;
     imageUrls: string[];
-    exhibits: ExhibitSnapshotPreview[];
     version: number;
 }
 
