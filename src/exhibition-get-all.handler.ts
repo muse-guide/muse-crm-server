@@ -4,7 +4,7 @@ import middy from "@middy/core";
 import cors from "@middy/http-cors";
 import {id} from "./common/validation";
 import {z} from "zod";
-import {client} from "./clients/dynamo-tx.client";
+import {client} from "./clients/dynamo.client";
 import {EXHIBITION_TABLE} from "./model/table.model";
 
 const exhibitionGetAllHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {

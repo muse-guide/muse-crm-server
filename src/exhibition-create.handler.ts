@@ -2,13 +2,13 @@ import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {id} from "./common/validation";
-import {Exhibition} from "./model/exhibition.model";
+import {Exhibition, ExhibitionMutationOutput, mutationDefaults} from "./model/exhibition.model";
 import {v4 as uuidv4} from 'uuid';
 import {z} from "zod";
 import {StateMachineInput} from "./model/common.model";
 import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
 import {EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
-import {client} from "./clients/dynamo-tx.client";
+import {client} from "./clients/dynamo.client";
 
 const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
@@ -62,6 +62,11 @@ const exhibitionCreateHandler = async (event: StateMachineInput): Promise<Create
                     version: exhibition.version,
                 }
             })
+
+        const updateExhibitionOutput: ExhibitionMutationOutput = {
+            exhibition: exhibition,
+            ...mutationDefaults
+        }
 
         const exhibitionTxPutItem = TxInput.putOf(EXHIBITION_TABLE, exhibition)
         const exhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshots)

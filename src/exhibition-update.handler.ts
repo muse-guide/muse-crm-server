@@ -1,14 +1,13 @@
-import {exhibitionService} from "./clients/entity.service";
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {id, validateUniqueEntries} from "./common/validation";
-import {Exhibition, ExhibitionLang, ImageRef} from "./model/exhibition.model";
+import {Exhibition, ExhibitionLang, ExhibitionMutationOutput, ImageRef, mutationDefaults} from "./model/exhibition.model";
 import {z} from "zod";
 import {EMPTY_STRING, StateMachineInput} from "./model/common.model";
 import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
 import {EntityStructure, EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
-import {client} from "./clients/dynamo-tx.client";
+import {client} from "./clients/dynamo.client";
 
 const updateExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64).optional(),
@@ -25,17 +24,7 @@ const updateExhibitionSchema = z.object({
     })).optional()
 })
 
-interface UpdateExhibitionOutput {
-    exhibition: Exhibition
-    langOptionsToAdd: ExhibitionSnapshot[]
-    langOptionsToDelete: ExhibitionSnapshot[]
-    langOptionsToUpdate: ExhibitionSnapshot[]
-    imagesToAdd: ImageRef[]
-    imagesToDelete: ImageRef[]
-    imagesToUpdate: ImageRef[]
-}
-
-const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<UpdateExhibitionOutput> => {
+export const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<ExhibitionMutationOutput> => {
     try {
         const request = updateExhibitionSchema.parse(event.body)
         const exhibitionId = id.parse(event.path?.["id"])
@@ -44,17 +33,18 @@ const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<Upda
         if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         if (request.images) validateUniqueEntries(request.images, "name", "Image refs not unique.")
 
-        const exhibition = await exhibitionService.getEntity(exhibitionId, customerId)
+        const exhibition = await client.getItem({
+            table: EXHIBITION_TABLE,
+            keys: {
+                partitionKey: exhibitionId,
+                sortKey: customerId
+            }
+        })
         const exhibitionUpdated = updateAllKeys(exhibition, request) as Exhibition
 
-        const updateExhibitionOutput: UpdateExhibitionOutput = {
+        const updateExhibitionOutput: ExhibitionMutationOutput = {
             exhibition: exhibitionUpdated,
-            langOptionsToAdd: [],
-            langOptionsToDelete: [],
-            langOptionsToUpdate: [],
-            imagesToAdd: [],
-            imagesToDelete: [],
-            imagesToUpdate: [],
+            ...mutationDefaults
         }
 
         const snapshotMapper: (opt: EntityStructure) => ExhibitionSnapshot = langOption => {
@@ -72,9 +62,9 @@ const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<Upda
         }
 
         if (request.langOptions) {
-            updateExhibitionOutput.langOptionsToAdd = getDifferent(request.langOptions, exhibition.langOptions, "lang").map(snapshotMapper)
-            updateExhibitionOutput.langOptionsToDelete = getDifferent(exhibition.langOptions, request.langOptions, "lang").map(snapshotMapper)
-            updateExhibitionOutput.langOptionsToUpdate = getModifiedLangOptions(request.langOptions, exhibition.langOptions).map(snapshotMapper)
+            updateExhibitionOutput.exhibitionSnapshotsToAdd = getDifferent(request.langOptions, exhibition.langOptions, "lang").map(snapshotMapper) as ExhibitionSnapshot[]
+            updateExhibitionOutput.exhibitionSnapshotsToDelete = getDifferent(exhibition.langOptions, request.langOptions, "lang").map(snapshotMapper) as ExhibitionSnapshot[]
+            updateExhibitionOutput.exhibitionSnapshotsToUpdate = getModifiedLangOptions(request.langOptions, exhibition.langOptions).map(snapshotMapper)
         }
 
         if (request.images) {
@@ -83,10 +73,13 @@ const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<Upda
             updateExhibitionOutput.imagesToUpdate = getModifiedLImages(request.images, exhibition.images)
         }
 
-        const updateExhibitionTxPutItems = TxInput.putOf(EXHIBITION_TABLE, exhibitionUpdated)
-        const updateExhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.langOptionsToAdd)
-        const updateExhibitionSnapshotTxDeleteItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.langOptionsToDelete)
-        const updateExhibitionSnapshotTxUpdateItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.langOptionsToUpdate)
+        const exhibitionSnapshotKeysToDelete = updateExhibitionOutput.exhibitionSnapshotsToDelete?.map(opt => {
+            return {partitionKey: opt.id, sortKey: opt.lang}
+        })
+        const updateExhibitionTxPutItems = TxInput.updateOf(EXHIBITION_TABLE, exhibitionUpdated)
+        const updateExhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.exhibitionSnapshotsToAdd || [])
+        const updateExhibitionSnapshotTxDeleteItems = TxInput.deleteOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshotKeysToDelete || [])
+        const updateExhibitionSnapshotTxUpdateItems = TxInput.updateOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.exhibitionSnapshotsToUpdate || [])
 
         await client.inTransaction(
             ...updateExhibitionTxPutItems,

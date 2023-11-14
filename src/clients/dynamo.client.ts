@@ -1,31 +1,22 @@
 import {NotFoundException} from "../common/exceptions";
-import {Exhibition} from "../model/exhibition.model";
 import * as DynamoDB from 'aws-sdk/clients/dynamodb';
-import {ExhibitionSnapshot} from "../model/exhibition-snapshot.model";
-import {EntityStructure} from "../model/table.model";
+import {EntityStructure, KeysInput, Table, TxInput} from "../model/table.model";
 
-
-export interface PaginatedResults<T> {
-    items: T[],
+export interface PaginatedResults {
+    items: EntityStructure[],
     count: number,
     nextPageKey?: string | undefined
 }
 
-export const dynamoDocClient = new DynamoDB.DocumentClient({
-    httpOptions: {
-        timeout: 2200,
-        connectTimeout: 2200,
-    },
-    maxRetries: 10,
-});
+export interface Pagination {
+    pageSize: number,
+    nextPageKey?: string
+}
 
-export class DynamoClient<T extends Record<string, any>> {
-    tableName: string;
-    partitionKey: string
-    sortKey?: string
+export class DynamoClient {
     docClient: DynamoDB.DocumentClient;
 
-    constructor(tableName: string, partitionKey: string, sortKey?: string, region?: string) {
+    constructor(region?: string) {
         this.docClient = new DynamoDB.DocumentClient({
             region,
             httpOptions: {
@@ -34,40 +25,51 @@ export class DynamoClient<T extends Record<string, any>> {
             },
             maxRetries: 10,
         });
-        this.tableName = tableName
-        this.partitionKey = partitionKey
-        this.sortKey = sortKey
     }
 
-    async getItem(partitionKeyValue: string, sortKeyValue?: string): Promise<T> {
+    async getItem({table, keys}: { table: Table, keys: KeysInput }): Promise<EntityStructure> {
+        const {partitionKey, sortKey} = keys
 
         const result = await this.docClient.get({
-            TableName: this.tableName,
-            Key: this.resolveKey(partitionKeyValue, sortKeyValue),
+            TableName: table.name,
+            Key: table.resolveKey(partitionKey, sortKey),
         }).promise();
 
         if (result.Item == undefined) {
-            throw new NotFoundException(`Item with id: ${partitionKeyValue} not found for in table: ${this.tableName}`)
+            throw new NotFoundException(`Item with id: ${partitionKey} not found for in table: ${table.name}`)
         }
-        return result.Item as T;
+        return result.Item;
     }
 
-    async createItem(item: T) {
+    async getAllItems(table: Table, keys: KeysInput): Promise<EntityStructure[]> {
+        const {partitionKey} = keys
+
+        const result = await this.docClient.query({
+            TableName: table.name,
+            KeyConditionExpression: `${table.partitionKey} = :searchItem`,
+            ExpressionAttributeValues: {":searchItem": partitionKey}
+        }).promise();
+
+        return result.Items ?? [];
+    }
+
+    async createItem(table: Table, item: EntityStructure) {
         const result = await this.docClient.put({
-            TableName: this.tableName,
+            TableName: table.name,
             Item: {...item},
         }).promise();
     }
 
-    async getCustomerItems(customerId: string, pageSize: number, nextPageKey?: string): Promise<PaginatedResults<T>> {
+    async getItemsPaginated({table, keys, pagination}: { table: Table, keys: KeysInput, pagination: Pagination }): Promise<PaginatedResults> {
         let queryResult;
-        let items: T[] = [];
+        let items: EntityStructure[] = [];
+        const {pageSize, nextPageKey} = pagination
 
         const dbParams: DynamoDB.DocumentClient.QueryInput = {
-            TableName: this.tableName,
-            KeyConditionExpression: `${this.sortKey} = :customerId`,
+            TableName: table.name,
+            KeyConditionExpression: `${table.partitionKey} = :searchKey`,
             ExpressionAttributeValues: {
-                ":customerId": customerId,
+                ":searchKey": keys.partitionKey,
             }
         }
 
@@ -77,19 +79,19 @@ export class DynamoClient<T extends Record<string, any>> {
 
         do {
             queryResult = await this.docClient.query(dbParams).promise();
-            items = items.concat(queryResult.Items as T[]);
+            items = items.concat(queryResult.Items as EntityStructure[]);
             dbParams.ExclusiveStartKey = queryResult.LastEvaluatedKey;
         } while (typeof queryResult.LastEvaluatedKey !== "undefined" && items.length < pageSize);
 
         if (items.length > pageSize) {
-            const lastPrimaryKey = items[pageSize - 1][this.partitionKey]
-            const lastSortKey = this.sortKey ? items[pageSize - 1][this.sortKey] : undefined
+            const lastPrimaryKey = items[pageSize - 1][table.partitionKey]
+            const lastSortKey = table.sortKey ? items[pageSize - 1][table.sortKey] : undefined
 
             items.splice(pageSize, items.length - pageSize)
-            queryResult.LastEvaluatedKey = this.resolveKey(lastPrimaryKey, lastSortKey)
+            queryResult.LastEvaluatedKey = table.resolveKey(lastPrimaryKey, lastSortKey)
         }
 
-        const result: PaginatedResults<T> = {
+        const result: PaginatedResults = {
             items: items,
             count: items.length,
         };
@@ -101,20 +103,21 @@ export class DynamoClient<T extends Record<string, any>> {
         return result
     }
 
-    async deleteItem(partitionKeyValue: string, sortKeyValue?: string) {
+    async deleteItem(table: Table, keys: KeysInput) {
+        const {partitionKey, sortKey} = keys
         const result = await this.docClient.delete({
-            TableName: this.tableName,
-            Key: this.resolveKey(partitionKeyValue, sortKeyValue),
+            TableName: table.name,
+            Key: table.resolveKey(partitionKey, sortKey),
         }).promise();
     }
 
-    async updateItem(entity: T): Promise<T> {
-        const key = this.resolveKey(entity[this.partitionKey], this.sortKey ? entity[this.sortKey] : undefined)
+    async updateItem(table: Table, entity: EntityStructure): Promise<EntityStructure> {
+        const key = table.resolveKey(entity[table.partitionKey], table.sortKey ? entity[table.sortKey] : undefined)
         const version: number = entity.version
         const newVersion: number = Date.now()
         delete entity.version;
-        delete entity[this.partitionKey];
-        if (this.sortKey) delete entity[this.sortKey];
+        delete entity[table.partitionKey];
+        if (table.sortKey) delete entity[table.sortKey];
 
         let updateExpression = 'SET #version = :newVersion, ';
         let conditionExpression = '#version = :versionAtHand';
@@ -134,7 +137,7 @@ export class DynamoClient<T extends Record<string, any>> {
             });
 
         await this.docClient.update({
-            TableName: this.tableName,
+            TableName: table.name,
             Key: key,
             UpdateExpression: updateExpression,
             ExpressionAttributeNames: expressionAttributeNames,
@@ -146,32 +149,22 @@ export class DynamoClient<T extends Record<string, any>> {
             ...key,
             ...entity,
             version: newVersion,
-        };
-    }
 
-    private resolveKey = (partitionKeyValue: string, sortKeyValue?: string): { [key: string]: string } => {
-        if (this.sortKey && sortKeyValue) return {
-            [this.partitionKey]: partitionKeyValue,
-            [this.sortKey]: sortKeyValue
-        }
-        else return {
-            [this.partitionKey]: partitionKeyValue
         }
     }
 
-    private resolveExpression = (partitionKeyValue: string, sortKeyValue?: string): string => {
-        if (this.sortKey && sortKeyValue) return `${this.partitionKey} = ${partitionKeyValue} AND ${this.sortKey} = ${sortKeyValue}`
-        else return `${this.partitionKey} = ${partitionKeyValue}`
+    /**
+     * Runs multiple operations in a transaction.
+     *
+     * @param txItems - Array of operations to run in the transaction
+     * @returns Promise resolving to the transaction result if successful, rejects if failed
+     */
+    async inTransaction(...txItems: TxInput[]) {
+        return await this.docClient.transactWrite({
+                TransactItems: txItems
+            }
+        ).promise()
     }
 }
 
-export const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
-export const EXHIBITION_TABLE_PARTITION_KEY = "id"
-export const EXHIBITION_TABLE_SORT_KEY = "customerId"
-
-export const EXHIBITION_SNAPSHOT_TABLE_NAME = process.env.EXHIBITION_SNAPSHOT_TABLE_NAME!!
-export const EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY = "id"
-export const EXHIBITION_SNAPSHOT_TABLE_SORT_KEY = "lang"
-
-export const exhibitionTable = new DynamoClient<Exhibition>(EXHIBITION_TABLE_NAME, EXHIBITION_TABLE_PARTITION_KEY, EXHIBITION_TABLE_SORT_KEY)
-export const exhibitionSnapshotTable = new DynamoClient<ExhibitionSnapshot>(EXHIBITION_SNAPSHOT_TABLE_NAME, EXHIBITION_SNAPSHOT_TABLE_PARTITION_KEY, EXHIBITION_SNAPSHOT_TABLE_SORT_KEY)
+export const client = new DynamoClient(process.env.AWS_REGION ?? "eu-central-1")

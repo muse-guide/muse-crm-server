@@ -69,6 +69,11 @@ export class TxInput {
     static updateOf = (table: Table, ...items: EntityStructure[]): TxInput[] => {
         return items.map(item => {
             const key = table.resolveKey(item[table.partitionKey], table.sortKey ? item[table.sortKey] : undefined)
+
+            delete item[table.partitionKey];
+            if (table.sortKey) delete item[table.sortKey];
+            if (item["version"]) item["version"] = Date.now()
+
             const expressionAttributeNames: EntityStructure = {};
             const expressionAttributeValues: EntityStructure = {};
             let updateExpression = 'SET ';
@@ -84,7 +89,6 @@ export class TxInput {
                         updateExpression += ', ';
                     }
                 });
-
             return {
                 Update: {
                     TableName: table.name,
