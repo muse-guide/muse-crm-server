@@ -1,3 +1,5 @@
+import {nanoid} from "nanoid";
+
 export interface StateMachineInput {
     sub: string;
     path?: { [name: string]: string | undefined };
@@ -5,6 +7,8 @@ export interface StateMachineInput {
     header?: { [name: string]: string | undefined };
     body?: any;
 }
+
+export const nid = () => nanoid(8)
 
 export const EMPTY_STRING= ""
 

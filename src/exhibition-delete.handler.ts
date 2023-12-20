@@ -1,6 +1,6 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
-import {id, required} from "./common/validation";
+import {nanoId, required, uuidId} from "./common/validation";
 import {StateMachineInput} from "./model/common.model";
 import httpJsonBodyParser from "@middy/http-json-body-parser";
 import {client} from "./clients/dynamo.client";
@@ -10,8 +10,8 @@ import {mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "./model/
 
 const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
     try {
-        const exhibitionId = id.parse(event.path?.["id"])
-        const customerId = id.parse(event.sub)
+        const exhibitionId = nanoId.parse(event.path?.["id"])
+        const customerId = uuidId.parse(event.sub)
         const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
         const exhibition = await client.getItem({

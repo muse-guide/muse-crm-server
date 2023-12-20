@@ -1,7 +1,8 @@
 import {z} from "zod";
 import {BadRequestException} from "./exceptions";
 
-export const id = z.string().uuid();
+export const nanoId = z.string().length(8);
+export const uuidId = z.string().uuid();
 export const required = z.string();
 
 export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: string, msg?: string) => {
