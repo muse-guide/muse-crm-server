@@ -4,12 +4,13 @@ export interface ExhibitionSnapshotId {
 }
 
 export interface ExhibitionSnapshot extends ExhibitionSnapshotId {
-    institutionId?: string;
+    institutionId: string;
     langOptions: string[];
     title: string;
     subtitle: string;
     description?: string;
     imageUrls: string[];
+    includeInstitution: boolean;
     version: number;
 }
 

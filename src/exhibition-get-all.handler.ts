@@ -7,10 +7,12 @@ import {z} from "zod";
 import {client} from "./clients/dynamo.client";
 import {EXHIBITION_TABLE} from "./model/table.model";
 
+const DEFAULT_PAGE_SIZE = 10
+
 const exhibitionGetAllHandler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const customerId = id.parse(event.requestContext.authorizer?.claims.sub)
-        const pageSize = z.coerce.number().min(1).parse(event.queryStringParameters?.["page-size"])
+        const pageSize = z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"])
         const nextPageKey = event.queryStringParameters?.["next-page-key"]
 
         const exhibitions = await client.getItemsPaginated({
@@ -19,7 +21,7 @@ const exhibitionGetAllHandler = async (event: APIGatewayProxyEvent): Promise<API
                 partitionKey: customerId
             },
             pagination: {
-                pageSize: pageSize,
+                pageSize: pageSize ?? DEFAULT_PAGE_SIZE,
                 nextPageKey: nextPageKey
             }
         })

@@ -1,14 +1,14 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {id} from "./common/validation";
-import {Exhibition, ExhibitionMutationOutput, mutationDefaults} from "./model/exhibition.model";
+import {id, required} from "./common/validation";
+import {Exhibition, ExhibitionContext, generateSnapshot} from "./model/exhibition.model";
 import {v4 as uuidv4} from 'uuid';
 import {z} from "zod";
 import {StateMachineInput} from "./model/common.model";
-import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
 import {EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
 import {client} from "./clients/dynamo.client";
+import {mapToAssetProcessorInput} from "./model/asset.model";
 
 const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
@@ -21,53 +21,30 @@ const createExhibitionSchema = z.object({
         description: z.string().min(1).max(256).optional(),
     })).nonempty(),
     images: z.array(z.object({
-        name: z.string().min(1).max(64),
-        url: z.string().url()
+        key: z.string().min(1),
+        name: z.string().min(1)
     }))
 })
 
-export interface CreateExhibitionOutput {
-    exhibition: Exhibition,
-    exhibitionSnapshots: ExhibitionSnapshot[]
-}
-
-const exhibitionCreateHandler = async (event: StateMachineInput): Promise<CreateExhibitionOutput> => {
+const exhibitionCreateHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
     try {
         const request = createExhibitionSchema.parse(event.body)
         const customerId = id.parse(event.sub)
+        const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
+
+        const exhibitionId = uuidv4()
 
         const exhibition: Exhibition = {
-            id: uuidv4(),
+            id: exhibitionId,
             customerId: customerId,
-            qrCodeUrl: "/asset/qr.png",
+            qrCodeUrl: `exhibitions/${exhibitionId}/qr.png`,
             version: Date.now(),
+            status: "ACTIVE",
             ...request
         }
 
-        const institutionId = exhibition.includeInstitutionInfo ? exhibition.institutionId : undefined
-        const langOptions = exhibition.langOptions.map(option => option.lang)
-        const imageUrls = exhibition.images.map(image => image.url)
-
-        const exhibitionSnapshots: Array<ExhibitionSnapshot> = exhibition.langOptions
-            .map(langOption => {
-                return {
-                    id: exhibition.id,
-                    institutionId: institutionId,
-                    lang: langOption.lang,
-                    langOptions: langOptions,
-                    title: langOption.title,
-                    subtitle: langOption.subtitle,
-                    description: langOption.description,
-                    imageUrls: imageUrls,
-                    version: exhibition.version,
-                }
-            })
-
-        const updateExhibitionOutput: ExhibitionMutationOutput = {
-            exhibition: exhibition,
-            ...mutationDefaults
-        }
-
+        const exhibitionSnapshots = exhibition.langOptions.map(opt => generateSnapshot(opt, exhibition))
+        const imagesToAdd = exhibition.images.map(imageRef => mapToAssetProcessorInput(identityId, exhibitionId, imageRef, 'CREATE'))
         const exhibitionTxPutItem = TxInput.putOf(EXHIBITION_TABLE, exhibition)
         const exhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshots)
 
@@ -76,9 +53,23 @@ const exhibitionCreateHandler = async (event: StateMachineInput): Promise<Create
             ...exhibitionSnapshotTxPutItems
         )
 
+        const qrCodeInput = {
+            target: exhibition.id,
+            identityId: identityId,
+            path: exhibition.qrCodeUrl
+        }
+
         return {
-            exhibition: exhibition,
-            exhibitionSnapshots: exhibitionSnapshots
+            mutation: {
+                entityId: exhibition.id,
+                entity: exhibition,
+                action: "CREATED",
+                actor: {
+                    customerId: customerId,
+                    identityId: identityId
+                }
+            },
+            assetToProcess: imagesToAdd
         }
 
     } catch (err) {

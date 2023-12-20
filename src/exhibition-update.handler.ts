@@ -1,13 +1,13 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {id, validateUniqueEntries} from "./common/validation";
-import {Exhibition, ExhibitionLang, ExhibitionMutationOutput, ImageRef, mutationDefaults} from "./model/exhibition.model";
+import {id, required, validateUniqueEntries} from "./common/validation";
+import {Exhibition, ExhibitionContext, ExhibitionLang, generateSnapshot} from "./model/exhibition.model";
 import {z} from "zod";
-import {EMPTY_STRING, StateMachineInput} from "./model/common.model";
-import {ExhibitionSnapshot} from "./model/exhibition-snapshot.model";
+import {StateMachineInput} from "./model/common.model";
 import {EntityStructure, EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
 import {client} from "./clients/dynamo.client";
+import {ImageRef, mapToAssetProcessorInput} from "./model/asset.model";
 
 const updateExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64).optional(),
@@ -19,80 +19,79 @@ const updateExhibitionSchema = z.object({
         description: z.string().min(1).max(256).optional(),
     })).optional(),
     images: z.array(z.object({
-        name: z.string().min(1).max(64),
-        url: z.string().min(1)
+        key: z.string().min(1),
+        name: z.string().min(1)
     })).optional()
 })
 
-export const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<ExhibitionMutationOutput> => {
-    try {
-        const request = updateExhibitionSchema.parse(event.body)
-        const exhibitionId = id.parse(event.path?.["id"])
-        const customerId = id.parse(event.sub)
+export const updateExhibitionTxHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
+        try {
+            const request = updateExhibitionSchema.parse(event.body)
+            const exhibitionId = id.parse(event.path?.["id"])
+            const customerId = id.parse(event.sub)
+            const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
-        if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
-        if (request.images) validateUniqueEntries(request.images, "name", "Image refs not unique.")
+            if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
+            if (request.images) validateUniqueEntries(request.images, "name", "Image refs not unique.")
 
-        const exhibition = await client.getItem({
-            table: EXHIBITION_TABLE,
-            keys: {
-                partitionKey: exhibitionId,
-                sortKey: customerId
-            }
-        })
-        const exhibitionUpdated = updateAllKeys(exhibition, request) as Exhibition
+            const exhibition = await client.getItem({
+                table: EXHIBITION_TABLE,
+                keys: {
+                    partitionKey: customerId,
+                    sortKey: exhibitionId
+                }
+            })
 
-        const updateExhibitionOutput: ExhibitionMutationOutput = {
-            exhibition: exhibitionUpdated,
-            ...mutationDefaults
-        }
+            const exhibitionUpdated = updateAllKeys(exhibition, request) as Exhibition
+            exhibitionUpdated.version = Date.now()
 
-        const snapshotMapper: (opt: EntityStructure) => ExhibitionSnapshot = langOption => {
+            const langOptions = request.langOptions ?? []
+            const exhibitionSnapshotsToAdd = getDifferent(langOptions, exhibition.langOptions)
+                .map(opt => generateSnapshot(opt as ExhibitionLang, exhibitionUpdated))
+            const exhibitionSnapshotsToDelete = getDifferent(exhibition.langOptions, langOptions)
+                .map(opt => generateSnapshot(opt as ExhibitionLang, exhibitionUpdated))
+            const exhibitionSnapshotsToUpdate = getSame(langOptions, exhibition.langOptions)
+                .map(opt => generateSnapshot(opt as ExhibitionLang, exhibitionUpdated))
+
+            const images = request.images ?? []
+            const imagesToAdd = getDifferent(images, exhibition.images, "key")
+                .map(image => mapToAssetProcessorInput(identityId, exhibitionId, image as ImageRef, 'CREATE'))
+            const imagesToDelete = getDifferent(exhibition.images, images, "key")
+                .map(image => mapToAssetProcessorInput(identityId, exhibitionId, image as ImageRef, 'DELETE'))
+
+            const exhibitionSnapshotKeysToDelete = exhibitionSnapshotsToDelete.map(opt => {
+                return {partitionKey: opt.id, sortKey: opt.lang}
+            })
+            const updateExhibitionTxPutItems = TxInput.updateOf(EXHIBITION_TABLE, exhibitionUpdated)
+            const updateExhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshotsToAdd)
+            const updateExhibitionSnapshotTxDeleteItems = TxInput.deleteOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshotKeysToDelete)
+            const updateExhibitionSnapshotTxUpdateItems = TxInput.updateOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshotsToUpdate)
+
+            await client.inTransaction(
+                ...updateExhibitionTxPutItems,
+                ...updateExhibitionSnapshotTxPutItems,
+                ...updateExhibitionSnapshotTxDeleteItems,
+                ...updateExhibitionSnapshotTxUpdateItems
+            )
+
             return {
-                id: exhibitionUpdated.id,
-                institutionId: exhibitionUpdated.institutionId,
-                lang: langOption.lang,
-                langOptions: exhibitionUpdated.langOptions.map(option => option.lang),
-                title: langOption.title,
-                subtitle: langOption.subtitle,
-                description: langOption.description ?? EMPTY_STRING,
-                imageUrls: exhibitionUpdated.images.map(image => image.url),
-                version: exhibitionUpdated.version,
+                mutation: {
+                    entityId: exhibitionUpdated.id,
+                    entity: exhibitionUpdated,
+                    action: "UPDATED",
+                    actor: {
+                        customerId: customerId,
+                        identityId: identityId
+                    }
+                },
+                assetToProcess: imagesToAdd.concat(imagesToDelete),
             }
+        } catch
+            (err) {
+            return handleError(err);
         }
-
-        if (request.langOptions) {
-            updateExhibitionOutput.exhibitionSnapshotsToAdd = getDifferent(request.langOptions, exhibition.langOptions, "lang").map(snapshotMapper) as ExhibitionSnapshot[]
-            updateExhibitionOutput.exhibitionSnapshotsToDelete = getDifferent(exhibition.langOptions, request.langOptions, "lang").map(snapshotMapper) as ExhibitionSnapshot[]
-            updateExhibitionOutput.exhibitionSnapshotsToUpdate = getModifiedLangOptions(request.langOptions, exhibition.langOptions).map(snapshotMapper)
-        }
-
-        if (request.images) {
-            updateExhibitionOutput.imagesToAdd = getDifferent(request.images, exhibition.images, "name") as ImageRef[]
-            updateExhibitionOutput.imagesToDelete = getDifferent(exhibition.images, request.images, "name") as ImageRef[]
-            updateExhibitionOutput.imagesToUpdate = getModifiedLImages(request.images, exhibition.images)
-        }
-
-        const exhibitionSnapshotKeysToDelete = updateExhibitionOutput.exhibitionSnapshotsToDelete?.map(opt => {
-            return {partitionKey: opt.id, sortKey: opt.lang}
-        })
-        const updateExhibitionTxPutItems = TxInput.updateOf(EXHIBITION_TABLE, exhibitionUpdated)
-        const updateExhibitionSnapshotTxPutItems = TxInput.putOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.exhibitionSnapshotsToAdd || [])
-        const updateExhibitionSnapshotTxDeleteItems = TxInput.deleteOf(EXHIBITION_SNAPSHOT_TABLE, ...exhibitionSnapshotKeysToDelete || [])
-        const updateExhibitionSnapshotTxUpdateItems = TxInput.updateOf(EXHIBITION_SNAPSHOT_TABLE, ...updateExhibitionOutput.exhibitionSnapshotsToUpdate || [])
-
-        await client.inTransaction(
-            ...updateExhibitionTxPutItems,
-            ...updateExhibitionSnapshotTxPutItems,
-            ...updateExhibitionSnapshotTxDeleteItems,
-            ...updateExhibitionSnapshotTxUpdateItems
-        )
-
-        return updateExhibitionOutput
-    } catch (err) {
-        return handleError(err);
     }
-};
+;
 
 const updateAllKeys = (entity: any, request: any) => {
     const updated: EntityStructure = JSON.parse(JSON.stringify(entity));
@@ -102,7 +101,7 @@ const updateAllKeys = (entity: any, request: any) => {
     return updated
 }
 
-const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[], key: string) => {
+const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[], key: string = "lang") => {
     return arr1.filter(
         option1 => !arr2.some(
             option2 => option1[key] === option2[key]
@@ -110,24 +109,12 @@ const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[], key: str
     )
 }
 
-const getModifiedLangOptions = (arr1: ExhibitionLang[], arr2: ExhibitionLang[]) => {
+const getSame = (arr1: EntityStructure[], arr2: EntityStructure[], key: string = "lang") => {
     return arr1.filter(
         option1 => arr2.some(
-            option2 => option1.lang === option2.lang && (
-                option1.title !== option2.title
-                || option1.subtitle !== option2.subtitle
-                || option1.description !== option2.description
-            )
+            option2 => option1[key] === option2[key]
         ),
-    );
-}
-
-const getModifiedLImages = (arr1: ImageRef[], arr2: ImageRef[]) => {
-    return arr1.filter(
-        option1 => arr2.some(
-            option2 => option1.name === option2.name && option1.url !== option2.url
-        ),
-    );
+    )
 }
 
 export const handler = middy(updateExhibitionTxHandler);

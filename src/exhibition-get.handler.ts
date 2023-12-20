@@ -14,8 +14,8 @@ const exhibitionGetHandler = async (event: APIGatewayProxyEvent): Promise<APIGat
         const exhibition = await client.getItem({
             table: EXHIBITION_TABLE,
             keys: {
-                partitionKey: exhibitionId,
-                sortKey: customerId
+                partitionKey: customerId,
+                sortKey: exhibitionId
             }
         })
 

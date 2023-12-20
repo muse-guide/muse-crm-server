@@ -2,6 +2,7 @@ import {z} from "zod";
 import {BadRequestException} from "./exceptions";
 
 export const id = z.string().uuid();
+export const required = z.string();
 
 export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: string, msg?: string) => {
     const allEntriesLength = arr.map(i => i[key]).length

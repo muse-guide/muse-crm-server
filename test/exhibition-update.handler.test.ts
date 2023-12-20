@@ -24,8 +24,8 @@ describe("updateExhibitionTxHandler", () => {
 
         const output = await updateExhibitionTxHandler(input);
 
-        expect(output.exhibition.referenceName).toEqual("New Name");
-        expect(output.exhibition.langOptions[0].title).toEqual("New Title");
+        expect(output.mutation.referenceName).toEqual("New Name");
+        expect(output.mutation.langOptions[0].title).toEqual("New Title");
 
         expect(output.exhibitionSnapshotsToAdd.length).toEqual(0);
         expect(output.exhibitionSnapshotsToDelete.length).toEqual(0);

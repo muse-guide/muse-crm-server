@@ -70,16 +70,13 @@ export class TxInput {
         return items.map(item => {
             const key = table.resolveKey(item[table.partitionKey], table.sortKey ? item[table.sortKey] : undefined)
 
-            delete item[table.partitionKey];
-            if (table.sortKey) delete item[table.sortKey];
-            if (item["version"]) item["version"] = Date.now()
-
             const expressionAttributeNames: EntityStructure = {};
             const expressionAttributeValues: EntityStructure = {};
             let updateExpression = 'SET ';
 
             Object.entries(item)
                 .filter(([, value]) => typeof value !== 'undefined')
+                .filter(([key , ]) => key !== table.partitionKey && key !== table.sortKey)
                 .forEach(([key, value], index, array) => {
                     updateExpression += `#${key} = :${key}`;
                     expressionAttributeNames[`#${key}`] = key;
@@ -103,8 +100,8 @@ export class TxInput {
 }
 
 const EXHIBITION_TABLE_NAME = process.env.EXHIBITION_TABLE_NAME!!
-const EXHIBITION_TABLE_PARTITION_KEY = "id"
-const EXHIBITION_TABLE_SORT_KEY = "customerId"
+const EXHIBITION_TABLE_PARTITION_KEY = "customerId"
+const EXHIBITION_TABLE_SORT_KEY = "id"
 export const EXHIBITION_TABLE = new Table(EXHIBITION_TABLE_NAME, EXHIBITION_TABLE_PARTITION_KEY, EXHIBITION_TABLE_SORT_KEY)
 
 const EXHIBITION_SNAPSHOT_TABLE_NAME = process.env.EXHIBITION_SNAPSHOT_TABLE_NAME!!

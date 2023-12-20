@@ -115,9 +115,6 @@ export class DynamoClient {
         const key = table.resolveKey(entity[table.partitionKey], table.sortKey ? entity[table.sortKey] : undefined)
         const version: number = entity.version
         const newVersion: number = Date.now()
-        delete entity.version;
-        delete entity[table.partitionKey];
-        if (table.sortKey) delete entity[table.sortKey];
 
         let updateExpression = 'SET #version = :newVersion, ';
         let conditionExpression = '#version = :versionAtHand';
@@ -126,6 +123,7 @@ export class DynamoClient {
 
         Object.entries(entity)
             .filter(([, value]) => typeof value !== 'undefined')
+            .filter(([key , ]) => key !== table.partitionKey && key !== table.sortKey && key !== 'version')
             .forEach(([key, value], index, array) => {
                 updateExpression += `#${key} = :${key}`;
                 expressionAttributeNames[`#${key}`] = key;

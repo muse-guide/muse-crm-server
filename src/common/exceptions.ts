@@ -23,6 +23,12 @@ export abstract class BaseException extends Error {
     }
 }
 
+export class InternalException extends BaseException {
+    constructor(message: string, cause?: unknown) {
+        super(500, message, cause);
+    }
+}
+
 export class BadRequestException extends BaseException {
     constructor(message: string, cause?: unknown) {
         super(400, message, cause);

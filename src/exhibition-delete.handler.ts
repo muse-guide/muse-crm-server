@@ -1,27 +1,33 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
-import {id} from "./common/validation";
+import {id, required} from "./common/validation";
 import {StateMachineInput} from "./model/common.model";
 import httpJsonBodyParser from "@middy/http-json-body-parser";
 import {client} from "./clients/dynamo.client";
 import {EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
-import {Exhibition, ExhibitionId} from "./model/exhibition.model";
+import {Exhibition, ExhibitionContext} from "./model/exhibition.model";
+import {mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "./model/asset.model";
 
-const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<ExhibitionId> => {
+const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
     try {
         const exhibitionId = id.parse(event.path?.["id"])
         const customerId = id.parse(event.sub)
+        const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
+
         const exhibition = await client.getItem({
             table: EXHIBITION_TABLE,
             keys: {
-                partitionKey: exhibitionId,
-                sortKey: customerId
+                partitionKey: customerId,
+                sortKey: exhibitionId
             }
         }) as Exhibition
 
+        const imagesToDelete = exhibition.images.map(imageRef => mapToAssetProcessorInput(identityId, exhibitionId, imageRef, 'DELETE'))
+        const qrCodeToDelete = mapQrCodeToAssetProcessorInput(identityId, exhibitionId, exhibition.qrCodeUrl, 'DELETE')
+
         const exhibitionTxDeleteItem = TxInput.deleteOf(EXHIBITION_TABLE, {
-            partitionKey: exhibition.id,
-            sortKey: exhibition.customerId
+            partitionKey: exhibition.customerId,
+            sortKey: exhibition.id
         })
         const exhibitionSnapshotKeys = exhibition.langOptions.map(option => {
             return {
@@ -37,8 +43,15 @@ const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<Exhibi
         )
 
         return {
-            id: exhibitionId,
-            customerId: customerId
+            mutation: {
+                entityId: exhibition.id,
+                entity: exhibition,
+                action: "DELETED",
+                actor: {
+                    customerId: customerId,
+                }
+            },
+            assetToProcess: imagesToDelete.concat(qrCodeToDelete)
         }
     } catch (err) {
         return handleError(err);

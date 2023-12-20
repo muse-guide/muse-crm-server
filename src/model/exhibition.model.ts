@@ -1,4 +1,6 @@
-import {ExhibitionSnapshot} from "./exhibition-snapshot.model";
+import {ExhibitionSnapshot, ExhibitionSnapshotId} from "./exhibition-snapshot.model";
+import {EntityStatus, Mutation} from "./common.model";
+import {AssetProcessorInput, ImageRef, resolvePublicKey} from "./asset.model";
 
 export interface ExhibitionId {
     readonly id: string;
@@ -12,6 +14,7 @@ export interface Exhibition extends ExhibitionId {
     includeInstitutionInfo: boolean;
     langOptions: ExhibitionLang[];
     images: ImageRef[];
+    status: EntityStatus,
     version: number;
 }
 
@@ -22,28 +25,25 @@ export interface ExhibitionLang {
     description?: string;
 }
 
-export interface ImageRef {
-    name: string;
-    url: string;
+export interface ExhibitionContext {
+    mutation: Mutation<Exhibition>,
+    assetToProcess?: AssetProcessorInput[]
 }
 
-export interface ExhibitionMutationOutput {
-    exhibition: Exhibition
-    exhibitionSnapshotsToAdd: ExhibitionSnapshot[]
-    exhibitionSnapshotsToDelete: ExhibitionSnapshot[]
-    exhibitionSnapshotsToUpdate: ExhibitionSnapshot[]
-    imagesToAdd: ImageRef[]
-    imagesToDelete: ImageRef[]
-    imagesToUpdate: ImageRef[]
-}
+export const generateSnapshot = (langOption: ExhibitionLang, exhibition: Exhibition): ExhibitionSnapshot => {
+    const availableLanguages = exhibition.langOptions.map(option => option.lang)
+    const imageUrls = exhibition.images.map(image => resolvePublicKey(exhibition.id, image))
 
-type DefaultMutationValues = Omit<ExhibitionMutationOutput, 'exhibition'>;
-
-export const mutationDefaults: DefaultMutationValues = {
-    exhibitionSnapshotsToAdd: [],
-    exhibitionSnapshotsToDelete: [],
-    exhibitionSnapshotsToUpdate: [],
-    imagesToAdd: [],
-    imagesToDelete: [],
-    imagesToUpdate: []
+    return {
+        id: exhibition.id,
+        institutionId: exhibition.institutionId,
+        lang: langOption.lang,
+        langOptions: availableLanguages,
+        title: langOption.title,
+        subtitle: langOption.subtitle,
+        description: langOption.description,
+        imageUrls: imageUrls,
+        includeInstitution: exhibition.includeInstitutionInfo,
+        version: exhibition.version,
+    }
 }
