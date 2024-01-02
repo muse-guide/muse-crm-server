@@ -8,6 +8,7 @@ import {nid, StateMachineInput} from "./model/common.model";
 import {EXHIBITION_SNAPSHOT_TABLE, EXHIBITION_TABLE, TxInput} from "./model/table.model";
 import {client} from "./clients/dynamo.client";
 import {mapToAssetProcessorInput} from "./model/asset.model";
+import {NotFoundException} from "./common/exceptions";
 
 const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
@@ -26,7 +27,7 @@ const createExhibitionSchema = z.object({
 })
 
 const exhibitionCreateHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
-    try {
+    // try {
         const request = createExhibitionSchema.parse(event.body)
         const customerId = uuidId.parse(event.sub)
         const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
@@ -64,11 +65,13 @@ const exhibitionCreateHandler = async (event: StateMachineInput): Promise<Exhibi
             assetToProcess: imagesToAdd
         }
 
-    } catch (err) {
-        return handleError(err);
-    }
+    // } catch (err) {
+    //     return handleError(err);
+    // }
 };
 
 export const handler = middy(exhibitionCreateHandler);
 handler
-    .use(httpJsonBodyParser())
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))

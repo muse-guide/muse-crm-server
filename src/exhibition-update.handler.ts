@@ -133,4 +133,6 @@ const getSame = (arr1: EntityStructure[], arr2: EntityStructure[], key: string =
 
 export const handler = middy(updateExhibitionTxHandler);
 handler
-    .use(httpJsonBodyParser())
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))

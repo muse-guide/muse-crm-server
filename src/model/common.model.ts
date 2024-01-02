@@ -8,6 +8,17 @@ export interface StateMachineInput {
     body?: any;
 }
 
+export interface ErrorInput {
+    Error: string,
+    Cause: string
+}
+
+export interface ErrorCause {
+    errorType: string,
+    errorMessage: string,
+    trace: string
+}
+
 export const nid = () => nanoid(8)
 
 export const EMPTY_STRING= ""

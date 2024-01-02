@@ -60,4 +60,6 @@ const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<Exhibi
 
 export const handler = middy(exhibitionDeleteHandler);
 handler
-    .use(httpJsonBodyParser())
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))

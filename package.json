@@ -3,26 +3,27 @@
   "version": "1.0.0",
   "type": "commonjs",
   "dependencies": {
-    "@aws-lambda-powertools/logger": "^1.12.1",
-    "@aws-sdk/client-dynamodb": "^3.379.1",
-    "@aws-sdk/lib-dynamodb": "^3.379.1",
-    "@middy/core": "^4.6.1",
-    "@middy/http-cors": "^4.6.1",
-    "@middy/http-json-body-parser": "^4.6.4",
-    "@types/aws-lambda": "^8.10.119",
+    "@aws-lambda-powertools/logger": "^1.17.0",
+    "@aws-sdk/client-dynamodb": "^3.484.0",
+    "@aws-sdk/lib-dynamodb": "^3.484.0",
+    "@middy/core": "^5.2.0",
+    "@middy/http-cors": "^5.2.0",
+    "@middy/http-json-body-parser": "^5.2.0",
+    "@types/aws-lambda": "^8.10.130",
     "@types/qrcode": "^1.5.5",
     "aws-lambda": "^1.0.7",
     "nanoid": "^5.0.4",
     "qrcode": "^1.5.3",
-    "zod": "^3.22.2"
+    "ts-custom-error": "^3.3.1",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
-    "@types/express": "^4.17.17",
-    "@types/jest": "^29.5.8",
-    "@types/uuid": "^9.0.3",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.11",
+    "@types/uuid": "^9.0.7",
     "ts-jest": "^29.1.1",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.1.6"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
   },
   "scripts": {
     "test": "jest -i --config jest.config.js --silent --verbose --coverage"
