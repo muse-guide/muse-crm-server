@@ -24,7 +24,7 @@ export const mapToAssetProcessorInput = (identityId: string, exhibitionId: strin
     return {source, target, action}
 }
 
-export const mapQrCodeToAssetProcessorInput = (identityId: string, exhibitionId: string, qrCodeUrl: string, action: AssetAction): AssetProcessorInput => {
+export const mapQrCodeToAssetProcessorInput = (identityId: string, qrCodeUrl: string, action: AssetAction): AssetProcessorInput => {
     const source = `private/${identityId}/${qrCodeUrl}`
     return {
         source: source,

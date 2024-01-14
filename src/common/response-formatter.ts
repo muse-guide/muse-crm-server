@@ -11,7 +11,7 @@ export const responseFormatter = (statusCode: number, response?: object) => {
 
 export const restHandleError = (err: unknown) => {
     logger.error("Error:", err as Error);
-    let errorResponse: BaseException = new InternalServerErrorException(err);
+    let errorResponse: BaseException = new InternalServerErrorException();
 
     if (err instanceof BaseException) {
         errorResponse = err;
@@ -20,12 +20,17 @@ export const restHandleError = (err: unknown) => {
         errorResponse = new BadRequestException(`Invalid request. Errors: ${err.errors.map(error => error.message).toString()}`)
     }
 
-    return errorResponse.formatResponse();
+    return {
+        statusCode: errorResponse.statusCode,
+        body: JSON.stringify({
+            message: errorResponse.message
+        })
+    };
 }
 
 export const handleError = (err: unknown) => {
     logger.error("Error:", err as Error);
-    let errorResponse: BaseException = new InternalServerErrorException(err);
+    let errorResponse: BaseException = new InternalServerErrorException();
 
     if (err instanceof BaseException) {
         errorResponse = err;

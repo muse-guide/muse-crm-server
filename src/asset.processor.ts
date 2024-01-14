@@ -1,7 +1,7 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {required} from "./common/validation";
+import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
 import {CopyObjectRequest, DeleteObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
@@ -38,7 +38,9 @@ const assetProcessor = async (event: ExhibitionContext): Promise<ExhibitionConte
 
 export const handler = middy(assetProcessor);
 handler
-    .use(httpJsonBodyParser())
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))
 
 const expose = async (asset: AssetProcessorInput) => {
     if (asset.target) {

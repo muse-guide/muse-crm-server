@@ -23,9 +23,9 @@ export class NotFoundException extends BaseException {
     }
 }
 
-export class ConcurrentUpdateException extends BaseException {
-    constructor(message: string) {
-        super(409, message);
+export class NotAuthorizedException extends BaseException {
+    constructor(message?: string) {
+        super(403, message ?? "Not authorized.");
     }
 }
 

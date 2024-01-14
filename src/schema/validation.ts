@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {BadRequestException} from "./exceptions";
+import {BadRequestException} from "../common/exceptions";
 
 export const nanoId = z.string().length(8);
 export const uuidId = z.string().uuid();

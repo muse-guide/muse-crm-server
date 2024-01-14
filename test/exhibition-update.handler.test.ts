@@ -1,4 +1,4 @@
-import {updateExhibitionTxHandler} from "../src/exhibition-update.handler";
+import {updateExhibitionHandler} from "../src/exhibition-update.handler";
 import {EXHIBITION_TABLE, TxInput} from "../src/model/table.model";
 
 describe("updateExhibitionTxHandler", () => {
@@ -22,7 +22,7 @@ describe("updateExhibitionTxHandler", () => {
             sub: "customer456"
         };
 
-        const output = await updateExhibitionTxHandler(input);
+        const output = await updateExhibitionHandler(input);
 
         expect(output.mutation.referenceName).toEqual("New Name");
         expect(output.mutation.langOptions[0].title).toEqual("New Title");

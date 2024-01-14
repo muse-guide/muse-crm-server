@@ -19,13 +19,13 @@ export interface ErrorCause {
     trace: string
 }
 
-export const nid = () => nanoid(8)
+export const nanoid_8 = () => nanoid(8)
 
-export const EMPTY_STRING= ""
+export const EMPTY_STRING = ""
 
-export interface Mutation<ENTITY> {
+export interface Mutation {
     entityId: string,
-    entity: ENTITY,
+    entity: any,
     action: MutationAction,
     actor: Actor,
     timestamp?: string

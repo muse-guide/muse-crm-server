@@ -1,7 +1,7 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {required} from "./common/validation";
+import {required} from "./schema/validation";
 import QRCode from 'qrcode'
 import * as AWS from 'aws-sdk';
 import {PutObjectRequest} from 'aws-sdk/clients/s3';
@@ -39,4 +39,6 @@ const qrCodeGenerator = async (event: ExhibitionContext): Promise<ExhibitionCont
 
 export const handler = middy(qrCodeGenerator);
 handler
-    .use(httpJsonBodyParser())
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))

@@ -70,7 +70,8 @@ export class DynamoClient {
             KeyConditionExpression: `${table.partitionKey} = :searchKey`,
             ExpressionAttributeValues: {
                 ":searchKey": keys.partitionKey,
-            }
+            },
+            IndexName: 'customerIndex'
         }
 
         if (nextPageKey) {
