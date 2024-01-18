@@ -1,4 +1,5 @@
 import {nanoid} from "nanoid";
+import {AssetProcessorInput} from "./asset.model";
 
 export interface StateMachineInput {
     sub: string;
@@ -31,6 +32,11 @@ export interface Mutation {
     timestamp?: string
 }
 
+export interface MutationContext {
+    mutation: Mutation,
+    assetToProcess?: AssetProcessorInput[]
+}
+
 export interface Actor {
     customerId: string,
     identityId?: string
@@ -38,4 +44,15 @@ export interface Actor {
 
 export type MutationAction = "CREATED" | "UPDATED" | "DELETED"
 
-export type EntityStatus = "ACTIVE" | "ERROR"
+export interface Pagination {
+    pageSize: number,
+    nextPageKey?: string
+}
+
+export interface PaginatedResults {
+    items: EntityStructure[],
+    count: number,
+    nextPageKey?: string | undefined
+}
+
+export type EntityStructure = { [key: string]: any; }

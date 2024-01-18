@@ -5,14 +5,14 @@ import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
 import {CopyObjectRequest, DeleteObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {ExhibitionContext} from "./model/exhibition.model";
 import {AssetProcessorInput} from "./model/asset.model";
+import {MutationContext} from "./model/common.model";
 
 const s3 = new AWS.S3();
 const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 const publicAssetBucket = required.parse(process.env.APP_ASSET_BUCKET)
 
-const assetProcessor = async (event: ExhibitionContext): Promise<ExhibitionContext> => {
+const assetProcessor = async (event: MutationContext): Promise<MutationContext> => {
     try {
         const {assetToProcess} = event
         const requests = assetToProcess ? assetToProcess.map(asset => {

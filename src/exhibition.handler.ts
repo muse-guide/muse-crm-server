@@ -6,7 +6,7 @@ import {exhibitService} from "./service/exhibition.service";
 import {CreateExhibition, createExhibitionSchema} from "./schema/exhiibition-create.schema";
 import {handleError} from "./common/response-formatter";
 
-const exhibitionCreate = async (event: StateMachineInput): Promise<MutationContext> => {
+const exhibitionCreateHandler = async (event: StateMachineInput): Promise<MutationContext> => {
     try {
         const request: CreateExhibition = createExhibitionSchema.parse(event.body)
         const customerId = uuidId.parse(event.sub)
@@ -18,8 +18,26 @@ const exhibitionCreate = async (event: StateMachineInput): Promise<MutationConte
     }
 };
 
-export const exhibitionCreateHandler = middy(exhibitionCreate);
-exhibitionCreateHandler
+export const handler = middy(exhibitionCreateHandler);
+handler
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))
+
+const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<MutationContext> => {
+    try {
+        const exhibitionId = nanoId.parse(event.path?.["id"])
+        const customerId = uuidId.parse(event.sub)
+        const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
+
+        return await exhibitService.deleteExhibition(exhibitionId, customerId, identityId)
+    } catch (err) {
+        return handleError(err);
+    }
+};
+
+export const handler = middy(exhibitionDeleteHandler);
+handler
     .use(httpJsonBodyParser({
         disableContentTypeError: true
     }))

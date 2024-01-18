@@ -1,12 +1,11 @@
 import {handleError} from "./common/response-formatter";
 import middy from "@middy/core";
 import {nanoId, required, uuidId} from "./schema/validation";
-import {StateMachineInput} from "./model/common.model";
+import {MutationContext, StateMachineInput} from "./model/common.model";
 import httpJsonBodyParser from "@middy/http-json-body-parser";
-import {ExhibitionContext} from "./model/exhibition.model";
 import {exhibitService} from "./service/exhibition.service";
 
-const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<ExhibitionContext> => {
+const exhibitionDeleteHandler = async (event: StateMachineInput): Promise<MutationContext> => {
     try {
         const exhibitionId = nanoId.parse(event.path?.["id"])
         const customerId = uuidId.parse(event.sub)

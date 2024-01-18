@@ -6,11 +6,11 @@ import QRCode from 'qrcode'
 import * as AWS from 'aws-sdk';
 import {PutObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {ExhibitionContext} from "./model/exhibition.model";
+import {MutationContext} from "./model/common.model";
 
 const s3 = new AWS.S3();
 
-const qrCodeGenerator = async (event: ExhibitionContext): Promise<ExhibitionContext> => {
+const qrCodeGenerator = async (event: MutationContext): Promise<MutationContext> => {
     try {
         const {entity, actor} = event.mutation
 

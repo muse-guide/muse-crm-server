@@ -1,49 +1,122 @@
-import {ExhibitionSnapshot, ExhibitionSnapshotId} from "./exhibition-snapshot.model";
-import {EntityStatus, Mutation} from "./common.model";
-import {AssetProcessorInput, ImageRef, resolvePublicKey} from "./asset.model";
+import DynamoDB from "aws-sdk/clients/dynamodb";
+import {Entity, EntityItem} from "electrodb";
 
-export interface ExhibitionId {
-    readonly id: string;
-    readonly customerId: string;
-}
+const client = new DynamoDB.DocumentClient();
+const table = process.env.EXHIBITION_TABLE_NAME!!;
 
-export interface Exhibition extends ExhibitionId {
-    readonly institutionId: string;
-    referenceName: string;
-    qrCodeUrl: string;
-    includeInstitutionInfo: boolean;
-    langOptions: ExhibitionLang[];
-    images: ImageRef[];
-    status: EntityStatus,
-    version: number;
-}
+export const ExhibitionDao = new Entity(
+    {
+        model: {
+            entity: "exhibition",
+            version: "1",
+            service: "muse",
+        },
+        attributes: {
+            id: {
+                type: "string",
+                required: true,
+            },
+            customerId: {
+                type: "string",
+                required: true,
+            },
+            customerIdSortKey: {
+                type: "string",
+                watch: ["id"],
+                set: (_, {id}) => {
+                    return id
+                },
+            },
+            institutionId: {
+                type: "string",
+                required: true,
+            },
+            referenceName: {
+                type: "string",
+                required: true,
+            },
+            qrCodeUrl: {
+                type: "string",
+                required: true,
+            },
+            includeInstitutionInfo: {
+                type: "boolean",
+                required: true,
+            },
+            langOptions: {
+                type: "list",
+                required: true,
+                items: {
+                    type: "map",
+                    properties: {
+                        lang: {
+                            type: "string",
+                            required: true,
+                        },
+                        title: {
+                            type: "string",
+                            required: true,
+                        },
+                        subtitle: {
+                            type: "string",
+                            required: true,
+                        },
+                        description: {
+                            type: "string",
+                            required: false,
+                        },
+                    },
+                },
+            },
+            images: {
+                type: "list",
+                required: true,
+                items: {
+                    type: "map",
+                    properties: {
+                        key: {
+                            type: "string",
+                            required: true,
+                        },
+                        name: {
+                            type: "string",
+                            required: true,
+                        },
+                    },
+                },
+            },
+            status: {
+                type: ["ACTIVE", "ERROR"] as const,
+                required: true,
+            },
+            version: {
+                type: "number",
+                set: _ => {
+                    return Date.now()
+                }
+            },
+        },
+        indexes: {
+            byId: {
+                pk: {
+                    field: "pk",
+                    composite: ["id"],
+                },
+            },
+            byCustomerId: {
+                index: "gsi1pk-gsi1sk-index",
+                pk: {
+                    field: "gsi1pk",
+                    composite: ["customerId"],
+                },
+                sk: {
+                    field: "gsi1sk",
+                    composite: ["customerIdSortKey"],
+                },
+            },
+        },
+    },
+    {client, table},
+);
 
-export interface ExhibitionLang {
-    lang: string;
-    title: string;
-    subtitle: string;
-    description?: string;
-}
-
-export interface ExhibitionContext {
-    mutation: Mutation<Exhibition>,
-    assetToProcess?: AssetProcessorInput[]
-}
-
-export const generateSnapshot = (langOption: ExhibitionLang, exhibition: Exhibition): ExhibitionSnapshot => {
-    const availableLanguages = exhibition.langOptions.map(option => option.lang)
-    const imageUrls = exhibition.images.map(image => resolvePublicKey(exhibition.id, image))
-
-    return {
-        id: exhibition.id,
-        institutionId: exhibition.institutionId,
-        lang: langOption.lang,
-        langOptions: availableLanguages,
-        title: langOption.title,
-        subtitle: langOption.subtitle,
-        description: langOption.description,
-        imageUrls: imageUrls,
-        includeInstitution: exhibition.includeInstitutionInfo,
-        version: exhibition.version,
-    }
-}
+export type Exhibition = EntityItem<typeof ExhibitionDao>

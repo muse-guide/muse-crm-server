@@ -1,12 +1,9 @@
 import {NotFoundException} from "../common/exceptions";
-import {Exhibition, ExhibitionDao} from "../model/exhibition.entity";
-import {Pagination} from "../clients/dynamo.client";
-import {ExhibitionContext} from "../model/exhibition.model";
+import {Exhibition, ExhibitionDao} from "../model/exhibition.model";
 import {ImageRef, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset.model";
-import {nanoid_8} from "../model/common.model";
+import {EntityStructure, MutationContext, nanoid_8, PaginatedResults, Pagination} from "../model/common.model";
 import {CreateExhibition} from "../schema/exhiibition-create.schema";
 import {UpdateExhibition} from "../schema/exhibition-update.schema";
-import {EntityStructure} from "../model/table.model";
 
 const getExhibitionForCustomer = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
     const {data: exhibition} = await ExhibitionDao
@@ -20,10 +17,10 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
     return exhibition
 }
 
-const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination): Promise<Exhibition[]> => {
+const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination): Promise<PaginatedResults> => {
     const {pageSize, nextPageKey} = pagination
     const cursor: string | undefined = nextPageKey ? JSON.parse(Buffer.from(nextPageKey, "base64").toString()) : undefined
-    const {data: exhibitions} = await ExhibitionDao
+    const response = await ExhibitionDao
         .query
         .byCustomerId({
             customerId: customerId
@@ -33,16 +30,19 @@ const getExhibitionsForCustomer = async (customerId: string, pagination: Paginat
             limit: pageSize
         })
 
-    return exhibitions
+    return {
+        items: response.data,
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
 }
 
-const createExhibition = async (createExhibition: CreateExhibition, customerId: string, identityId: string): Promise<ExhibitionContext> => {
+const createExhibition = async (createExhibition: CreateExhibition, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibitionId = nanoid_8()
     const exhibition: Exhibition = {
         id: exhibitionId,
         customerId: customerId,
         qrCodeUrl: `exhibitions/${exhibitionId}/qr.png`,
-        version: Date.now(),
         status: "ACTIVE",
         ...createExhibition
     }
@@ -68,7 +68,7 @@ const createExhibition = async (createExhibition: CreateExhibition, customerId: 
     }
 }
 
-const deleteExhibition = async (exhibitionId: string, customerId: string, identityId: string): Promise<ExhibitionContext> => {
+const deleteExhibition = async (exhibitionId: string, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
     const imagesToDelete = exhibition.images.map(imageRef => mapToAssetProcessorInput(identityId, exhibitionId, imageRef, 'DELETE'))
     const qrCodeToDelete = mapQrCodeToAssetProcessorInput(identityId, exhibition.qrCodeUrl, 'DELETE')
@@ -93,7 +93,7 @@ const deleteExhibition = async (exhibitionId: string, customerId: string, identi
 
 }
 
-const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateExhibition, customerId: string, identityId: string): Promise<ExhibitionContext> => {
+const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateExhibition, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
     const requestImages = updateExhibition.images ?? []
 
@@ -105,7 +105,6 @@ const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateEx
             includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
             langOptions: updateExhibition.langOptions,
             images: updateExhibition.images,
-            version: Date.now(),
         })
         .go()
 
