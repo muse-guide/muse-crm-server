@@ -1,5 +1,5 @@
 import {nanoid} from "nanoid";
-import {AssetProcessorInput} from "./asset.model";
+import {AssetProcessorInput} from "./asset";
 
 export interface StateMachineInput {
     sub: string;
@@ -7,17 +7,6 @@ export interface StateMachineInput {
     querystring?: { [name: string]: string | undefined };
     header?: { [name: string]: string | undefined };
     body?: any;
-}
-
-export interface ErrorInput {
-    Error: string,
-    Cause: string
-}
-
-export interface ErrorCause {
-    errorType: string,
-    errorMessage: string,
-    trace: string
 }
 
 export const nanoid_8 = () => nanoid(8)
@@ -30,6 +19,37 @@ export interface Mutation {
     action: MutationAction,
     actor: Actor,
     timestamp?: string
+}
+
+export interface ExposableMutation extends Mutation {
+    asset: {
+        qrCode?: QrCodeAsset,
+        images?: ImageAsset[],
+        audios?: AudioAsset[],
+        toDelete?: DeleteAsset[]
+    }
+}
+
+export interface QrCodeAsset {
+    path: string,
+    value: string,
+}
+
+export interface ImageAsset {
+    privatePath: string,
+    publicPath: string,
+}
+
+export interface AudioAsset {
+    privatePath: string,
+    publicPath: string,
+    lang: string,
+    markup: string
+}
+
+export interface DeleteAsset {
+    privatePath: string,
+    publicPath?: string,
 }
 
 export interface MutationContext {

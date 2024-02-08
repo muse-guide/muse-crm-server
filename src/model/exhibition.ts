@@ -1,7 +1,6 @@
-import DynamoDB from "aws-sdk/clients/dynamodb";
 import {Entity, EntityItem} from "electrodb";
+import {client} from "../common/dbclient";
 
-const client = new DynamoDB.DocumentClient();
 const table = process.env.EXHIBITION_TABLE_NAME!!;
 
 export const ExhibitionDao = new Entity(
@@ -19,13 +18,6 @@ export const ExhibitionDao = new Entity(
             customerId: {
                 type: "string",
                 required: true,
-            },
-            customerIdSortKey: {
-                type: "string",
-                watch: ["id"],
-                set: (_, {id}) => {
-                    return id
-                },
             },
             institutionId: {
                 type: "string",
@@ -102,8 +94,12 @@ export const ExhibitionDao = new Entity(
                     field: "pk",
                     composite: ["id"],
                 },
+                sk: {
+                    field: "sk",
+                    composite: ["id"],
+                },
             },
-            byCustomerId: {
+            byCustomer: {
                 index: "gsi1pk-gsi1sk-index",
                 pk: {
                     field: "gsi1pk",
@@ -111,7 +107,18 @@ export const ExhibitionDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["customerIdSortKey"],
+                    composite: ["id"],
+                },
+            },
+            byInstitution: {
+                index: "gsi2pk-gsi2sk-index",
+                pk: {
+                    field: "gsi2pk",
+                    composite: ["institutionId"],
+                },
+                sk: {
+                    field: "gsi2sk",
+                    composite: ["id"],
                 },
             },
         },

@@ -6,32 +6,30 @@ import QRCode from 'qrcode'
 import * as AWS from 'aws-sdk';
 import {PutObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {MutationContext} from "./model/common.model";
+import {QrCodeAsset} from "./model/common";
 
 const s3 = new AWS.S3();
 
-const qrCodeGenerator = async (event: MutationContext): Promise<MutationContext> => {
+const qrCodeGenerator = async (qrCode: QrCodeAsset) => {
     try {
-        const {entity, actor} = event.mutation
-
         const domain = required.parse(process.env.APP_DOMAIN)
         const bucketName = required.parse(process.env.CRM_ASSET_BUCKET)
-        const urlToEncode = `${domain}/exh/${entity.id}`
-        const qrCodeKey = `private/${actor.identityId}/${entity.qrCodeUrl}`
-        const qrCode = await QRCode.toBuffer(urlToEncode)
+
+        const urlToEncode = `${domain}/${qrCode!!.value}`
+        const qrCodeKey = qrCode!!.path
+        const qrCodeBuffer = await QRCode.toBuffer(urlToEncode)
 
         const params: PutObjectRequest = {
             Bucket: bucketName,
             Key: qrCodeKey,
-            Body: qrCode,
+            Body: qrCodeBuffer,
             ContentEncoding: 'base64',
             ContentType: 'image/png'
         };
 
         await s3.upload(params).promise();
-        logger.debug(`QR code for exhibition ${entity.id} has been generated and uploaded to S3 at ${qrCodeKey}`);
 
-        return event
+        logger.debug(`QR code for with encoded value: ${urlToEncode} has been generated and uploaded to S3 at ${qrCodeKey}`);
     } catch (err) {
         return handleError(err);
     }

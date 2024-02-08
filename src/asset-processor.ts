@@ -5,8 +5,8 @@ import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
 import {CopyObjectRequest, DeleteObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {AssetProcessorInput} from "./model/asset.model";
-import {MutationContext} from "./model/common.model";
+import {AssetProcessorInput} from "./model/asset";
+import {MutationContext} from "./model/common";
 
 const s3 = new AWS.S3();
 const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)

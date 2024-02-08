@@ -1,4 +1,4 @@
-import {EMPTY_STRING} from "./common.model";
+import {EMPTY_STRING} from "./common";
 
 export interface ImageRef {
     key: string;

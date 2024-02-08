@@ -1,9 +1,8 @@
 import {NotFoundException} from "../common/exceptions";
-import {Exhibition, ExhibitionDao} from "../model/exhibition.model";
-import {ImageRef, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset.model";
-import {EntityStructure, MutationContext, nanoid_8, PaginatedResults, Pagination} from "../model/common.model";
-import {CreateExhibition} from "../schema/exhiibition-create.schema";
-import {UpdateExhibition} from "../schema/exhibition-update.schema";
+import {Exhibition, ExhibitionDao} from "../model/exhibition";
+import {ImageRef, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset";
+import {EntityStructure, MutationContext, nanoid_8, PaginatedResults, Pagination} from "../model/common";
+import {CreateExhibitionDto, ExhibitionDto, UpdateExhibitionDto} from "../schema/exhibition";
 
 const getExhibitionForCustomer = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
     const {data: exhibition} = await ExhibitionDao
@@ -14,7 +13,7 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
     if (!exhibition || customerId !== exhibition.customerId) {
         throw new NotFoundException("Exhibition does not exist.")
     }
-    return exhibition
+    return mapToExhibitionDto(exhibition)
 }
 
 const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination): Promise<PaginatedResults> => {
@@ -22,7 +21,7 @@ const getExhibitionsForCustomer = async (customerId: string, pagination: Paginat
     const cursor: string | undefined = nextPageKey ? JSON.parse(Buffer.from(nextPageKey, "base64").toString()) : undefined
     const response = await ExhibitionDao
         .query
-        .byCustomerId({
+        .byCustomer({
             customerId: customerId
         })
         .go({
@@ -31,13 +30,13 @@ const getExhibitionsForCustomer = async (customerId: string, pagination: Paginat
         })
 
     return {
-        items: response.data,
+        items: response.data.map(mapToExhibitionDto),
         count: response.data.length,
         nextPageKey: response.cursor ?? undefined
     }
 }
 
-const createExhibition = async (createExhibition: CreateExhibition, customerId: string, identityId: string): Promise<MutationContext> => {
+const createExhibition = async (createExhibition: CreateExhibitionDto, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibitionId = nanoid_8()
     const exhibition: Exhibition = {
         id: exhibitionId,
@@ -52,15 +51,15 @@ const createExhibition = async (createExhibition: CreateExhibition, customerId: 
         .go()
 
     const imagesToAdd = exhibitionCreated.images
-        .map(imageRef => mapToAssetProcessorInput(identityId, exhibition.id, imageRef, 'CREATE'))
+        .map((imageRef: ImageRef) => mapToAssetProcessorInput(identityId, exhibition.id, imageRef, 'CREATE'))
 
     return {
         mutation: {
-            entityId: exhibition.id,
-            entity: exhibition,
+            entityId: exhibitionCreated.id,
+            entity: exhibitionCreated,
             action: "CREATED",
             actor: {
-                customerId: exhibition.customerId,
+                customerId: exhibitionCreated.customerId,
                 identityId: identityId
             }
         },
@@ -70,7 +69,7 @@ const createExhibition = async (createExhibition: CreateExhibition, customerId: 
 
 const deleteExhibition = async (exhibitionId: string, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
-    const imagesToDelete = exhibition.images.map(imageRef => mapToAssetProcessorInput(identityId, exhibitionId, imageRef, 'DELETE'))
+    const imagesToDelete = exhibition.images.map((imageRef: ImageRef) => mapToAssetProcessorInput(identityId, exhibitionId, imageRef, 'DELETE'))
     const qrCodeToDelete = mapQrCodeToAssetProcessorInput(identityId, exhibition.qrCodeUrl, 'DELETE')
 
     await ExhibitionDao
@@ -93,7 +92,7 @@ const deleteExhibition = async (exhibitionId: string, customerId: string, identi
 
 }
 
-const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateExhibition, customerId: string, identityId: string): Promise<MutationContext> => {
+const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateExhibitionDto, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
     const requestImages = updateExhibition.images ?? []
 
@@ -139,6 +138,11 @@ const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[], key: str
             option2 => option1[key] === option2[key]
         ),
     )
+}
+
+const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
+    delete exhibition.version;
+    return exhibition;
 }
 
 export const exhibitService = {
