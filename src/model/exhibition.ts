@@ -19,6 +19,10 @@ export const ExhibitionDao = new Entity(
                 type: "string",
                 required: true,
             },
+            identityId: {
+                type: "string",
+                required: true,
+            },
             institutionId: {
                 type: "string",
                 required: true,
@@ -27,9 +31,19 @@ export const ExhibitionDao = new Entity(
                 type: "string",
                 required: true,
             },
-            qrCodeUrl: {
-                type: "string",
+            qrCode: {
+                type: "map",
                 required: true,
+                properties: {
+                    privatePath: {
+                        type: "string",
+                        required: true,
+                    },
+                    value: {
+                        type: "string",
+                        required: true,
+                    },
+                },
             },
             includeInstitutionInfo: {
                 type: "boolean",
@@ -66,7 +80,11 @@ export const ExhibitionDao = new Entity(
                 items: {
                     type: "map",
                     properties: {
-                        key: {
+                        privatePath: {
+                            type: "string",
+                            required: true,
+                        },
+                        publicPath: {
                             type: "string",
                             required: true,
                         },

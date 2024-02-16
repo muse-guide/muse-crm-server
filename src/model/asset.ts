@@ -1,6 +1,6 @@
 import {EMPTY_STRING} from "./common";
 
-export interface ImageRef {
+export interface ImagesInput {
     key: string;
     name: string;
 }
@@ -13,12 +13,12 @@ export interface AssetProcessorInput {
 
 export type AssetAction = "CREATE" | "DELETE"
 
-export const resolvePublicKey = (exhibitionId: string, imageRef: ImageRef) => {
+export const resolvePublicKey = (exhibitionId: string, imageRef: ImagesInput) => {
     const imageId = imageRef.key.replace("exhibitions/images/", EMPTY_STRING)
     return `asset/${exhibitionId}/images/${imageId}`
 }
 
-export const mapToAssetProcessorInput = (identityId: string, exhibitionId: string, imageRef: ImageRef, action: AssetAction): AssetProcessorInput => {
+export const mapToAssetProcessorInput = (identityId: string, exhibitionId: string, imageRef: ImagesInput, action: AssetAction): AssetProcessorInput => {
     const source = `private/${identityId}/${imageRef.key}`
     const target = resolvePublicKey(exhibitionId, imageRef)
     return {source, target, action}

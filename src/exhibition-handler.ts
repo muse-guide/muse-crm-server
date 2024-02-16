@@ -1,7 +1,7 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
-import {MutationContext, StateMachineInput} from "./model/common";
+import {ExposableMutation, MutationContext, StateMachineInput} from "./model/common";
 import {exhibitService} from "./service/exhibition";
 import {CreateExhibitionDto, createExhibitionSchema, updateExhibitionSchema} from "./schema/exhibition";
 import {handleError, responseFormatter, restHandleError} from "./common/response-formatter";
@@ -15,7 +15,7 @@ import {z} from "zod";
  * @param event - The API Gateway proxy event containing exhibition data
  * @returns MutationContext with created exhibition
  */
-const exhibitionCreate = async (event: StateMachineInput): Promise<MutationContext> => {
+const exhibitionCreate = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {
         const request: CreateExhibitionDto = createExhibitionSchema.parse(event.body)
         const customerId = uuidId.parse(event.sub)
@@ -40,7 +40,7 @@ exhibitionCreateHandler
  * @param event - The API Gateway proxy event containing exhibition ID
  * @returns MutationContext with deleted exhibition
  */
-const exhibitionDelete = async (event: StateMachineInput): Promise<MutationContext> => {
+const exhibitionDelete = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {
         const exhibitionId = nanoId.parse(event.path?.["id"])
         const customerId = uuidId.parse(event.sub)
@@ -65,7 +65,7 @@ exhibitionDeleteHandler
  * @param event - The API Gateway proxy event containing updated exhibition data
  * @returns MutationContext with updated exhibition
  */
-export const exhibitionUpdate = async (event: StateMachineInput): Promise<MutationContext> => {
+export const exhibitionUpdate = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {
         const request = updateExhibitionSchema.parse(event.body)
         const exhibitionId = nanoId.parse(event.path?.["id"])

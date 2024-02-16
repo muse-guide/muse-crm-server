@@ -2,7 +2,6 @@ import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
-import {DeleteObjectRequest} from 'aws-sdk/clients/s3';
 import {DeleteAsset} from "./model/common";
 import {handleError} from "./common/response-formatter";
 
@@ -16,23 +15,32 @@ const publicAssetBucket = required.parse(process.env.APP_ASSET_BUCKET)
  * @param input - Contains asset data to delete
  * @returns The input event object
  */
-const deleteAssetHandler = async (input: DeleteAsset[]) => {
+const deleteAssetHandler = async (input: DeleteAsset) => {
+    const privateAsset = input.private
+    const publicAsset = input.public
+
     try {
         await Promise.all(
-            input
-                .map(asset => [
-                        {
+            privateAsset
+                .map(path => {
+                        return {
                             Bucket: privateAssetBucket,
-                            Key: asset.privatePath,
-                        },
-                        asset.publicPath ? {
-                            Bucket: publicAssetBucket,
-                            Key: asset.publicPath
-                        } : undefined
-                    ]
+                            Key: path,
+                        }
+                    }
                 )
-                .flat()
-                .filter((item): item is DeleteObjectRequest => !!item)
+                .map(async (item) => await s3.deleteObject(item).promise())
+        )
+
+        await Promise.all(
+            publicAsset
+                .map(path => {
+                        return {
+                            Bucket: privateAssetBucket,
+                            Key: path,
+                        }
+                    }
+                )
                 .map(async (item) => await s3.deleteObject(item).promise())
         )
     } catch (err) {

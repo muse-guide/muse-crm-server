@@ -1,6 +1,6 @@
 import {NotFoundException} from "../common/exceptions";
 import {Exhibit, ExhibitDao} from "../model/exhibit";
-import {ImageRef, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset";
+import {ImagesInput, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset";
 import {EntityStructure, MutationContext, nanoid_8, PaginatedResults, Pagination} from "../model/common";
 import {CreateExhibitDto, ExhibitDto, UpdateExhibitDto} from "../schema/exhibit";
 
@@ -63,7 +63,7 @@ const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string
         .go()
 
     const imagesToAdd = exhibitCreated.images
-        .map((imageRef: ImageRef) => mapToAssetProcessorInput(identityId, exhibit.id, imageRef, 'CREATE'))
+        .map((imageRef: ImagesInput) => mapToAssetProcessorInput(identityId, exhibit.id, imageRef, 'CREATE'))
 
     return {
         mutation: {
@@ -81,7 +81,7 @@ const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string
 
 const deleteExhibit = async (exhibitId: string, customerId: string, identityId: string): Promise<MutationContext> => {
     const exhibit = await getExhibitForCustomer(exhibitId, customerId)
-    const imagesToDelete = exhibit.images.map((imageRef: ImageRef) => mapToAssetProcessorInput(identityId, exhibitId, imageRef, 'DELETE'))
+    const imagesToDelete = exhibit.images.map((imageRef: ImagesInput) => mapToAssetProcessorInput(identityId, exhibitId, imageRef, 'DELETE'))
     const qrCodeToDelete = mapQrCodeToAssetProcessorInput(identityId, exhibit.qrCodeUrl, 'DELETE')
 
     await ExhibitDao
@@ -135,11 +135,11 @@ const updateExhibit = async (exhibitId: string, updateExhibit: UpdateExhibitDto,
     }
 }
 
-const resolveImageToProcess = (identityId: string, exhibitId: string, requestImages: ImageRef[], existingImages: ImageRef[]) => {
+const resolveImageToProcess = (identityId: string, exhibitId: string, requestImages: ImagesInput[], existingImages: ImagesInput[]) => {
     const imagesToAdd = getDifferent(requestImages, existingImages, "key")
-        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImageRef, 'CREATE'))
+        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImagesInput, 'CREATE'))
     const imagesToDelete = getDifferent(existingImages, requestImages, "key")
-        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImageRef, 'DELETE'))
+        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImagesInput, 'DELETE'))
 
     return imagesToAdd.concat(imagesToDelete)
 }

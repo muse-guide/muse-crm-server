@@ -26,30 +26,34 @@ export interface ExposableMutation extends Mutation {
         qrCode?: QrCodeAsset,
         images?: ImageAsset[],
         audios?: AudioAsset[],
-        toDelete?: DeleteAsset[]
+        delete?: DeleteAsset
     }
 }
 
-export interface QrCodeAsset {
-    path: string,
+export interface PrivateAsset {
+    privatePath: string,
+}
+
+export interface PublicAsset {
+    publicPath: string,
+}
+
+export interface QrCodeAsset extends PrivateAsset {
     value: string,
 }
 
-export interface ImageAsset {
-    privatePath: string,
-    publicPath: string,
+export interface ImageAsset extends PrivateAsset, PublicAsset {
+    name: string,
 }
 
-export interface AudioAsset {
-    privatePath: string,
-    publicPath: string,
+export interface AudioAsset extends PrivateAsset, PublicAsset {
     lang: string,
     markup: string
 }
 
 export interface DeleteAsset {
-    privatePath: string,
-    publicPath?: string,
+    private: string[],
+    public: string[],
 }
 
 export interface MutationContext {

@@ -1,5 +1,4 @@
 import {z} from "zod";
-import {Exhibition} from "../model/exhibition";
 
 export const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
@@ -20,8 +19,8 @@ export const createExhibitionSchema = z.object({
 export type CreateExhibitionDto = z.infer<typeof createExhibitionSchema>;
 
 export const updateExhibitionSchema = z.object({
-    referenceName: z.string().min(1).max(64).optional(),
-    includeInstitutionInfo: z.boolean().optional(),
+    referenceName: z.string().min(1).max(64),
+    includeInstitutionInfo: z.boolean(),
     langOptions: z.array(z.object({
         lang: z.string().length(2),
         title: z.string().min(1).max(64),
@@ -31,9 +30,26 @@ export const updateExhibitionSchema = z.object({
     images: z.array(z.object({
         key: z.string().min(1),
         name: z.string().min(1)
-    })).optional()
+    }))
 })
 
 export type UpdateExhibitionDto = z.infer<typeof updateExhibitionSchema>;
 
-export type ExhibitionDto = Omit<Exhibition, "version">
+export interface ExhibitionDto {
+    id: string,
+    institutionId: string,
+    referenceName: string,
+    qrCodeUrl: string,
+    includeInstitutionInfo: boolean,
+    langOptions: {
+        lang: string,
+        title: string,
+        subtitle: string,
+        description?: string
+    }[],
+    images: {
+        key: string,
+        name: string
+    }[],
+    status: string
+}
