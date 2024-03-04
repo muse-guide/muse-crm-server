@@ -23,6 +23,12 @@ export class NotFoundException extends BaseException {
     }
 }
 
+export class AudioGenerationException extends BaseException {
+    constructor(message?: string) {
+        super(500, message ?? "Failed to generate audio.");
+    }
+}
+
 export class NotAuthorizedException extends BaseException {
     constructor(message?: string) {
         super(403, message ?? "Not authorized.");

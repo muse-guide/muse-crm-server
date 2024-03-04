@@ -1,7 +1,7 @@
 import {Entity, EntityItem} from "electrodb";
-import {client} from "../common/dbclient";
+import {dynamoClient} from "../common/aws-clients";
 
-const table = process.env.EXHIBITION_TABLE_NAME!!;
+const table = process.env.RESOURCE_TABLE_NAME!!;
 
 export const ExhibitDao = new Entity(
     {
@@ -19,6 +19,10 @@ export const ExhibitDao = new Entity(
                 type: "string",
                 required: true,
             },
+            identityId: {
+                type: "string",
+                required: true,
+            },
             exhibitionId: {
                 type: "string",
                 required: true,
@@ -26,20 +30,6 @@ export const ExhibitDao = new Entity(
             referenceName: {
                 type: "string",
                 required: true,
-            },
-            qrCode: {
-                type: "map",
-                required: true,
-                properties: {
-                    url: {
-                        type: "string",
-                        required: true,
-                    },
-                    value: {
-                        type: "string",
-                        required: true,
-                    },
-                }
             },
             langOptions: {
                 type: "list",
@@ -71,10 +61,10 @@ export const ExhibitDao = new Entity(
                                     type: "string",
                                     required: true,
                                 },
-                                url: {
-                                    type: "string",
+                                voice: {
+                                    type: ["FEMALE_1", "MALE_1"] as const,
                                     required: true,
-                                }
+                                },
                             }
                         },
                     },
@@ -86,7 +76,7 @@ export const ExhibitDao = new Entity(
                 items: {
                     type: "map",
                     properties: {
-                        key: {
+                        id: {
                             type: "string",
                             required: true,
                         },
@@ -98,7 +88,7 @@ export const ExhibitDao = new Entity(
                 },
             },
             status: {
-                type: ["ACTIVE", "ERROR"] as const,
+                type: ["PROCESSING", "ACTIVE", "ERROR"] as const,
                 required: true,
             },
             version: {
@@ -113,10 +103,12 @@ export const ExhibitDao = new Entity(
                 pk: {
                     field: "pk",
                     composite: ["id"],
+                    casing: "none",
                 },
                 sk: {
                     field: "sk",
                     composite: ["id"],
+                    casing: "none",
                 },
             },
             byCustomer: {
@@ -124,10 +116,12 @@ export const ExhibitDao = new Entity(
                 pk: {
                     field: "gsi1pk",
                     composite: ["customerId"],
+                    casing: "none",
                 },
                 sk: {
                     field: "gsi1sk",
                     composite: ["id"],
+                    casing: "none",
                 },
             },
             byExhibition: {
@@ -135,15 +129,17 @@ export const ExhibitDao = new Entity(
                 pk: {
                     field: "gsi2pk",
                     composite: ["exhibitionId"],
+                    casing: "none",
                 },
                 sk: {
                     field: "gsi2sk",
                     composite: ["id"],
+                    casing: "none",
                 },
             },
         },
     },
-    {client, table},
+    {client: dynamoClient, table},
 );
 
 export type Exhibit = EntityItem<typeof ExhibitDao>

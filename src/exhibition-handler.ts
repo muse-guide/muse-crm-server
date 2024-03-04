@@ -1,7 +1,8 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
-import {ExposableMutation, MutationContext, StateMachineInput} from "./model/common";
+import {StateMachineInput} from "./model/common";
+import {ExposableMutation} from "./model/mutation";
 import {exhibitService} from "./service/exhibition";
 import {CreateExhibitionDto, createExhibitionSchema, updateExhibitionSchema} from "./schema/exhibition";
 import {handleError, responseFormatter, restHandleError} from "./common/response-formatter";
@@ -13,7 +14,7 @@ import {z} from "zod";
  * Creates a new exhibition
  *
  * @param event - The API Gateway proxy event containing exhibition data
- * @returns MutationContext with created exhibition
+ * @returns ExposableMutation with created exhibition
  */
 const exhibitionCreate = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {
@@ -38,7 +39,7 @@ exhibitionCreateHandler
  * Deletes an exhibition
  *
  * @param event - The API Gateway proxy event containing exhibition ID
- * @returns MutationContext with deleted exhibition
+ * @returns ExposableMutation with deleted exhibition
  */
 const exhibitionDelete = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {
@@ -63,7 +64,7 @@ exhibitionDeleteHandler
  * Updates an existing exhibition
  *
  * @param event - The API Gateway proxy event containing updated exhibition data
- * @returns MutationContext with updated exhibition
+ * @returns ExposableMutation with updated exhibition
  */
 export const exhibitionUpdate = async (event: StateMachineInput): Promise<ExposableMutation> => {
     try {

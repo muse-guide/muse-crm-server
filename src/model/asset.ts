@@ -1,33 +1,28 @@
-import {EMPTY_STRING} from "./common";
-
-export interface ImagesInput {
-    key: string;
-    name: string;
+export interface PrivateAsset {
+    privatePath: string,
 }
 
-export interface AssetProcessorInput {
-    source: string;
-    target?: string;
-    action: AssetAction
+export interface PublicAsset {
+    publicPath: string,
 }
 
-export type AssetAction = "CREATE" | "DELETE"
-
-export const resolvePublicKey = (exhibitionId: string, imageRef: ImagesInput) => {
-    const imageId = imageRef.key.replace("exhibitions/images/", EMPTY_STRING)
-    return `asset/${exhibitionId}/images/${imageId}`
+export interface QrCodeAsset extends PrivateAsset {
+    value: string,
 }
 
-export const mapToAssetProcessorInput = (identityId: string, exhibitionId: string, imageRef: ImagesInput, action: AssetAction): AssetProcessorInput => {
-    const source = `private/${identityId}/${imageRef.key}`
-    const target = resolvePublicKey(exhibitionId, imageRef)
-    return {source, target, action}
+export interface ImageAsset extends PrivateAsset, PublicAsset {
+    name: string,
 }
 
-export const mapQrCodeToAssetProcessorInput = (identityId: string, qrCodeUrl: string, action: AssetAction): AssetProcessorInput => {
-    const source = `private/${identityId}/${qrCodeUrl}`
-    return {
-        source: source,
-        action: action
-    }
+export type Voice = "FEMALE_1" | "MALE_1"
+
+export interface AudioAsset extends PrivateAsset, PublicAsset {
+    markup: string,
+    voice: Voice,
+    lang: string
+}
+
+export interface DeleteAsset {
+    private?: string[],
+    public?: string[],
 }

@@ -2,7 +2,7 @@ import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
-import {DeleteAsset} from "./model/common";
+import {DeleteAsset} from "./model/asset";
 import {handleError} from "./common/response-formatter";
 
 const s3 = new AWS.S3();
@@ -20,7 +20,7 @@ const deleteAssetHandler = async (input: DeleteAsset) => {
     const publicAsset = input.public
 
     try {
-        await Promise.all(
+        if (privateAsset) await Promise.all(
             privateAsset
                 .map(path => {
                         return {
@@ -32,11 +32,11 @@ const deleteAssetHandler = async (input: DeleteAsset) => {
                 .map(async (item) => await s3.deleteObject(item).promise())
         )
 
-        await Promise.all(
+        if (publicAsset) await Promise.all(
             publicAsset
                 .map(path => {
                         return {
-                            Bucket: privateAssetBucket,
+                            Bucket: publicAssetBucket,
                             Key: path,
                         }
                     }

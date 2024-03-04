@@ -4,7 +4,7 @@ import {required} from "./schema/validation";
 import * as AWS from 'aws-sdk';
 import {CopyObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {ImageAsset} from "./model/common";
+import {ImageAsset} from "./model/asset";
 import {handleError} from "./common/response-formatter";
 
 const s3 = new AWS.S3();

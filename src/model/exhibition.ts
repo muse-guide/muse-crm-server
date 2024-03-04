@@ -1,7 +1,7 @@
 import {Entity, EntityItem} from "electrodb";
-import {client} from "../common/dbclient";
+import {dynamoClient} from "../common/aws-clients";
 
-const table = process.env.EXHIBITION_TABLE_NAME!!;
+const table = process.env.RESOURCE_TABLE_NAME!!;
 
 export const ExhibitionDao = new Entity(
     {
@@ -141,7 +141,7 @@ export const ExhibitionDao = new Entity(
             },
         },
     },
-    {client, table},
+    {client: dynamoClient, table},
 );
 
 export type Exhibition = EntityItem<typeof ExhibitionDao>

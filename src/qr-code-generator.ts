@@ -6,7 +6,7 @@ import QRCode from 'qrcode'
 import * as AWS from 'aws-sdk';
 import {PutObjectRequest} from 'aws-sdk/clients/s3';
 import {logger} from "./common/logger";
-import {QrCodeAsset} from "./model/common";
+import {QrCodeAsset} from "./model/asset";
 
 const s3 = new AWS.S3();
 
@@ -15,13 +15,12 @@ const qrCodeGenerator = async (qrCode: QrCodeAsset) => {
         const domain = required.parse(process.env.APP_DOMAIN)
         const bucketName = required.parse(process.env.CRM_ASSET_BUCKET)
 
-        const urlToEncode = `${domain}/${qrCode!!.value}`
-        const qrCodeKey = qrCode!!.path
+        const urlToEncode = `${domain}/${qrCode.value}`
         const qrCodeBuffer = await QRCode.toBuffer(urlToEncode)
 
         const params: PutObjectRequest = {
             Bucket: bucketName,
-            Key: qrCodeKey,
+            Key: qrCode.privatePath,
             Body: qrCodeBuffer,
             ContentEncoding: 'base64',
             ContentType: 'image/png'
@@ -29,7 +28,7 @@ const qrCodeGenerator = async (qrCode: QrCodeAsset) => {
 
         await s3.upload(params).promise();
 
-        logger.debug(`QR code for with encoded value: ${urlToEncode} has been generated and uploaded to S3 at ${qrCodeKey}`);
+        logger.debug(`QR code for with encoded value: ${urlToEncode} has been generated and uploaded to S3 at ${qrCode.privatePath}`);
     } catch (err) {
         return handleError(err);
     }

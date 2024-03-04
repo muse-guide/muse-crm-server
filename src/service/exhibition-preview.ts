@@ -1,6 +1,5 @@
 import {NotFoundException} from "../common/exceptions";
 import {ExhibitionDao} from "../model/exhibition";
-import {ImagesInput, resolvePublicKey} from "../model/asset";
 import {ExhibitionPreviewDto} from "../schema/exhibition-preview";
 
 const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise<ExhibitionPreviewDto> => {
@@ -16,7 +15,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 
     const requestedLangOption = exhibition.langOptions.filter((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption.length > 0 ? requestedLangOption[0] : exhibition.langOptions[0]
-    const images = exhibition.images.map((ref: ImagesInput) => resolvePublicKey(exhibitionId, ref))
+    const images = exhibition.images.map(img => img.publicPath)
 
     return {
         id: exhibition.id,

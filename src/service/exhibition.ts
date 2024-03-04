@@ -1,8 +1,10 @@
 import {NotFoundException} from "../common/exceptions";
 import {Exhibition, ExhibitionDao} from "../model/exhibition";
-import {ImagesInput} from "../model/asset";
-import {EMPTY_STRING, ExposableMutation, ImageAsset, nanoid_8, PaginatedResults, Pagination, QrCodeAsset} from "../model/common";
+import {EMPTY_STRING, ImagesInput, nanoid_8, PaginatedResults, Pagination} from "../model/common";
+import {ImageAsset, QrCodeAsset} from "../model/asset";
+import {ExposableMutation} from "../model/mutation";
 import {CreateExhibitionDto, ExhibitionDto, UpdateExhibitionDto} from "../schema/exhibition";
+import {undefinedIfEmpty} from "../common/functions";
 
 const getExhibition = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
     const {data: exhibition} = await ExhibitionDao
@@ -67,14 +69,14 @@ const createExhibition = async (createExhibition: CreateExhibitionDto, customerI
     return {
         entityId: exhibitionCreated.id,
         entity: exhibitionCreated,
-        action: "CREATED",
+        action: "CREATE",
         actor: {
             customerId: exhibitionCreated.customerId,
             identityId: identityId
         },
         asset: {
             qrCode: qrCode,
-            images: images
+            images: undefinedIfEmpty(images)
         },
     }
 }
@@ -99,15 +101,15 @@ const deleteExhibition = async (exhibitionId: string, customerId: string, identi
     return {
         entityId: exhibition.id,
         entity: exhibition,
-        action: "CREATED",
+        action: "DELETE",
         actor: {
             customerId: exhibition.customerId,
             identityId: identityId
         },
         asset: {
             delete: {
-                private: privateAsset,
-                public: publicAsset
+                private: undefinedIfEmpty(privateAsset),
+                public: undefinedIfEmpty(publicAsset)
             }
         },
     }
@@ -130,20 +132,22 @@ const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateEx
 
     const imagesToAdd = getDifferent(imagesUpdated, exhibition.images)
     const imagesToDelete = getDifferent(exhibition.images, imagesUpdated)
+    const privateImages = imagesToDelete.map(img => img.privatePath)
+    const publicImages = imagesToDelete.map(img => img.publicPath)
 
     return {
         entityId: exhibition.id,
         entity: exhibition,
-        action: "UPDATED",
+        action: "UPDATE",
         actor: {
             customerId: exhibition.customerId,
             identityId: identityId
         },
         asset: {
-            images: imagesToAdd,
+            images: undefinedIfEmpty(imagesToAdd),
             delete: {
-                private: imagesToDelete.map(img => img.privatePath),
-                public: imagesToDelete.map(img => img.publicPath)
+                private: undefinedIfEmpty(privateImages),
+                public: undefinedIfEmpty(publicImages)
             }
         },
     }
@@ -151,10 +155,9 @@ const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateEx
 
 const mapImages = (exhibitionId: string, identityId: string, refList: ImagesInput[]) => {
     return refList.map((ref: ImagesInput) => {
-        const imageId = ref.key.replace("images/", EMPTY_STRING)
         return {
             privatePath: `private/${identityId}/${ref.key}`,
-            publicPath: `asset/exhibition/${exhibitionId}/images/${imageId}`,
+            publicPath: `asset/exhibition/${exhibitionId}/${ref.key}`,
             name: ref.name
         }
     })
@@ -169,7 +172,7 @@ const getDifferent = (arr1: ImageAsset[], arr2: ImageAsset[]) => {
 }
 
 const trimIdentity = (path: string, identityId: string) => {
-    return path.replace(`private/${identityId}`, EMPTY_STRING)
+    return path.replace(`private/${identityId}/`, EMPTY_STRING)
 }
 
 const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {

@@ -1,166 +1,113 @@
-import {NotFoundException} from "../common/exceptions";
 import {Exhibit, ExhibitDao} from "../model/exhibit";
-import {ImagesInput, mapQrCodeToAssetProcessorInput, mapToAssetProcessorInput} from "../model/asset";
-import {EntityStructure, MutationContext, nanoid_8, PaginatedResults, Pagination} from "../model/common";
-import {CreateExhibitDto, ExhibitDto, UpdateExhibitDto} from "../schema/exhibit";
+import {nanoid_8} from "../model/common";
+import {AudioAsset, ImageAsset, QrCodeAsset} from "../model/asset";
+import {CreateExhibitDto, CreateExhibitResponseDto} from "../schema/exhibit";
+import {undefinedIfEmpty} from "../common/functions";
+import {sfnClient} from "../common/aws-clients";
+import {StartExecutionCommand} from "@aws-sdk/client-sfn";
+import {required} from "../schema/validation";
+import {Exhibition, ExhibitionDao} from "../model/exhibition";
+import {NotFoundException} from "../common/exceptions";
 
-const getExhibitForCustomer = async (exhibitId: string, customerId: string): Promise<Exhibit> => {
-    const {data: exhibit} = await ExhibitDao
-        .get({
-            id: exhibitId
-        })
-        .go()
-    if (!exhibit || customerId !== exhibit.customerId) {
-        throw new NotFoundException("Exhibit does not exist.")
-    }
-    return mapToExhibitDto(exhibit)
-}
+const createExhibitStepFunctionArn = required.parse(process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN)
 
-const getExhibitsForCustomer = async (customerId: string, pagination: Pagination): Promise<PaginatedResults> => {
-    const {pageSize, nextPageKey} = pagination
-    const cursor: string | undefined = nextPageKey ? JSON.parse(Buffer.from(nextPageKey, "base64").toString()) : undefined
-    const response = await ExhibitDao
-        .query
-        .byCustomer({
-            customerId: customerId
-        })
-        .go({
-            cursor: cursor,
-            limit: pageSize
-        })
-
-    return {
-        items: response.data.map(mapToExhibitDto),
-        count: response.data.length,
-        nextPageKey: response.cursor ?? undefined
-    }
-}
-
-const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string, identityId: string): Promise<MutationContext> => {
+const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string, identityId: string): Promise<CreateExhibitResponseDto> => {
     const exhibitId = nanoid_8()
+
     const exhibit: Exhibit = {
-        ...createExhibit,
         id: exhibitId,
         customerId: customerId,
-        qrCode: {
-            url: `exhibits/${exhibitId}/qr.png`,
-            value: `/col/${exhibitId}`
-        } ,
-        status: "ACTIVE",
-        langOptions: createExhibit.langOptions.map(opt => {
-            return {
-                ...opt,
-                audio: {
-                    markup: opt.audio.markup,
-                    url: `exhibits/${exhibitId}/audio/${opt.lang}.mp3`
-                }
-            }
-        })
+        identityId: identityId,
+        exhibitionId: createExhibit.exhibitionId,
+        referenceName: createExhibit.referenceName,
+        langOptions: createExhibit.langOptions,
+        images: createExhibit.images,
+        status: "PROCESSING",
     }
 
     const {data: exhibitCreated} = await ExhibitDao
         .create(exhibit)
         .go()
 
-    const imagesToAdd = exhibitCreated.images
-        .map((imageRef: ImagesInput) => mapToAssetProcessorInput(identityId, exhibit.id, imageRef, 'CREATE'))
+    const audios: AudioAsset[] = toAudioAsset(exhibitCreated)
+    const images: ImageAsset[] = toImageAsset(exhibitCreated)
+    const qrCode: QrCodeAsset = toQrCodeAsset(exhibitCreated)
+
+    const mutation = {
+        entityId: exhibitCreated.id,
+        entity: exhibitCreated,
+        action: "CREATE",
+        actor: {
+            customerId: exhibitCreated.customerId,
+            identityId: identityId
+        },
+        asset: {
+            qrCode: qrCode,
+            images: undefinedIfEmpty(images),
+            audios: undefinedIfEmpty(audios)
+        },
+    }
+
+    const assetCreationExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: createExhibitStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
 
     return {
-        mutation: {
-            entityId: exhibitCreated.id,
-            entity: exhibitCreated,
-            action: "CREATED",
-            actor: {
-                customerId: exhibitCreated.customerId,
-                identityId: identityId
-            }
-        },
-        assetToProcess: imagesToAdd
+        id: exhibitCreated.id,
+        executionArn: assetCreationExecution.executionArn
     }
 }
 
-const deleteExhibit = async (exhibitId: string, customerId: string, identityId: string): Promise<MutationContext> => {
-    const exhibit = await getExhibitForCustomer(exhibitId, customerId)
-    const imagesToDelete = exhibit.images.map((imageRef: ImagesInput) => mapToAssetProcessorInput(identityId, exhibitId, imageRef, 'DELETE'))
-    const qrCodeToDelete = mapQrCodeToAssetProcessorInput(identityId, exhibit.qrCodeUrl, 'DELETE')
-
-    await ExhibitDao
-        .remove({
+const getExhibit = async (exhibitId: string, customerId: string): Promise<Exhibit> => {
+    const {data: exhibit} = await ExhibitDao
+        .get({
             id: exhibitId
         })
         .go()
 
-    return {
-        mutation: {
-            entityId: exhibit.id,
-            entity: exhibit,
-            action: "DELETED",
-            actor: {
-                customerId: customerId,
-            }
-        },
-        assetToProcess: imagesToDelete.concat(qrCodeToDelete)
+    if (!exhibit || customerId !== exhibit.customerId) {
+        throw new NotFoundException("Exhibit does not exist.")
     }
-
+    return exhibit
 }
 
-const updateExhibit = async (exhibitId: string, updateExhibit: UpdateExhibitDto, customerId: string, identityId: string): Promise<MutationContext> => {
-    const exhibit = await getExhibitForCustomer(exhibitId, customerId)
-    const requestImages = updateExhibit.images ?? []
 
-    const {data: exhibitUpdated} = await ExhibitDao
-        .patch({
-            id: exhibitId
-        }).set({
-            referenceName: updateExhibit.referenceName,
-            includeInstitutionInfo: updateExhibit.includeInstitutionInfo,
-            langOptions: updateExhibit.langOptions,
-            images: updateExhibit.images,
+const toAudioAsset = (exhibit: Exhibit): AudioAsset[] => {
+    return exhibit.langOptions
+        .filter(opt => opt.audio !== undefined)
+        .map(opt => {
+            const audio = opt.audio!!
+            return {
+                privatePath: `private/${exhibit.identityId}/audio/${exhibit.id}_${opt.lang}`,
+                publicPath: `asset/exhibit/${exhibit.id}/audio/${opt.lang}`,
+                markup: audio.markup,
+                voice: audio.voice,
+                lang: opt.lang
+            }
         })
-        .go()
+}
 
-    const imagesToProcess = resolveImageToProcess(identityId, exhibitId, requestImages, exhibit.images)
-
-    return {
-        mutation: {
-            entityId: exhibitId,
-            entity: exhibitUpdated,
-            action: "UPDATED",
-            actor: {
-                customerId: customerId,
-                identityId: identityId
+const toImageAsset = (exhibit: Exhibit): ImageAsset[] => {
+    return exhibit.images
+        .map(img => {
+            return {
+                privatePath: `private/${exhibit.identityId}/${img.id}`,
+                publicPath: `asset/exhibit/${exhibit.id}/${img.id}`,
+                name: img.name
             }
-        },
-        assetToProcess: imagesToProcess,
+        })
+}
+
+const toQrCodeAsset = (exhibit: Exhibit): QrCodeAsset => {
+    return {
+        privatePath: `private/${exhibit.identityId}/qr-codes/${exhibit.id}.png`,
+        value: `/exh/${exhibit.id}`,
     }
-}
-
-const resolveImageToProcess = (identityId: string, exhibitId: string, requestImages: ImagesInput[], existingImages: ImagesInput[]) => {
-    const imagesToAdd = getDifferent(requestImages, existingImages, "key")
-        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImagesInput, 'CREATE'))
-    const imagesToDelete = getDifferent(existingImages, requestImages, "key")
-        .map(image => mapToAssetProcessorInput(identityId, exhibitId, image as ImagesInput, 'DELETE'))
-
-    return imagesToAdd.concat(imagesToDelete)
-}
-
-const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[], key: string = "lang") => {
-    return arr1.filter(
-        option1 => !arr2.some(
-            option2 => option1[key] === option2[key]
-        ),
-    )
-}
-
-const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
-    delete exhibit.version;
-    return exhibit;
 }
 
 export const exhibitService = {
-    getExhibitForCustomer: getExhibitForCustomer,
-    getExhibitsForCustomer: getExhibitsForCustomer,
     createExhibit: createExhibit,
-    deleteExhibit: deleteExhibit,
-    updateExhibit: updateExhibit,
 };
