@@ -4,7 +4,7 @@ import {EMPTY_STRING, ImagesInput, nanoid_8, PaginatedResults, Pagination} from 
 import {ImageAsset, QrCodeAsset} from "../model/asset";
 import {ExposableMutation} from "../model/mutation";
 import {CreateExhibitionDto, ExhibitionDto, UpdateExhibitionDto} from "../schema/exhibition";
-import {undefinedIfEmpty} from "../common/functions";
+import {trimIdentity, undefinedIfEmpty} from "../common/functions";
 
 const getExhibition = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
     const {data: exhibition} = await ExhibitionDao
@@ -26,14 +26,13 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
 
 const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination): Promise<PaginatedResults> => {
     const {pageSize, nextPageKey} = pagination
-    const cursor: string | undefined = nextPageKey ? JSON.parse(Buffer.from(nextPageKey, "base64").toString()) : undefined
     const response = await ExhibitionDao
         .query
         .byCustomer({
             customerId: customerId
         })
         .go({
-            cursor: cursor,
+            cursor: nextPageKey,
             limit: pageSize
         })
 
@@ -171,10 +170,6 @@ const getDifferent = (arr1: ImageAsset[], arr2: ImageAsset[]) => {
     )
 }
 
-const trimIdentity = (path: string, identityId: string) => {
-    return path.replace(`private/${identityId}/`, EMPTY_STRING)
-}
-
 const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
     return {
         id: exhibition.id,
@@ -193,7 +188,7 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
     };
 }
 
-export const exhibitService = {
+export const exhibitionService = {
     getExhibitionForCustomer: getExhibitionForCustomer,
     getExhibitionsForCustomer: getExhibitionsForCustomer,
     createExhibition: createExhibition,

@@ -39,7 +39,7 @@ export const updateExhibitSchema = z.object({
     })).optional()
 })
 
-export type CreateExhibitResponseDto = {
+export type ExhibitMutationResponseDto = {
     id: string,
     executionArn?: string
 }

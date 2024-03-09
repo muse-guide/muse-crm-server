@@ -1,18 +1,18 @@
 import {Exhibit, ExhibitDao} from "../model/exhibit";
-import {nanoid_8} from "../model/common";
+import {nanoid_8, PaginatedResults, Pagination} from "../model/common";
 import {AudioAsset, ImageAsset, QrCodeAsset} from "../model/asset";
-import {CreateExhibitDto, CreateExhibitResponseDto} from "../schema/exhibit";
+import {CreateExhibitDto, ExhibitDto, ExhibitMutationResponseDto} from "../schema/exhibit";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
-import {required} from "../schema/validation";
-import {Exhibition, ExhibitionDao} from "../model/exhibition";
 import {NotFoundException} from "../common/exceptions";
 
-const createExhibitStepFunctionArn = required.parse(process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN)
+const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN
+const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
 
-const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string, identityId: string): Promise<CreateExhibitResponseDto> => {
+const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string, identityId: string): Promise<ExhibitMutationResponseDto> => {
     const exhibitId = nanoid_8()
+    // TODO add audio input validation here
 
     const exhibit: Exhibit = {
         id: exhibitId,
@@ -48,7 +48,7 @@ const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string
         },
     }
 
-    const assetCreationExecution = await sfnClient.send(
+    const assetProcessingExecution = await sfnClient.send(
         new StartExecutionCommand({
             stateMachineArn: createExhibitStepFunctionArn,
             input: JSON.stringify(mutation)
@@ -57,7 +57,7 @@ const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string
 
     return {
         id: exhibitCreated.id,
-        executionArn: assetCreationExecution.executionArn
+        executionArn: assetProcessingExecution.executionArn
     }
 }
 
@@ -74,6 +74,81 @@ const getExhibit = async (exhibitId: string, customerId: string): Promise<Exhibi
     return exhibit
 }
 
+const getExhibitForCustomer = async (exhibitId: string, customerId: string): Promise<ExhibitDto> => {
+    const exhibit = await getExhibit(exhibitId, customerId)
+    return mapToExhibitDto(exhibit)
+}
+
+const getExhibitsForCustomer = async (customerId: string, pagination: Pagination, exhibitionId?: string): Promise<PaginatedResults> => {
+    const {pageSize, nextPageKey} = pagination
+    const response = await ExhibitDao
+        .query
+        .byCustomer({
+            customerId: customerId,
+            exhibitionId: exhibitionId
+        })
+        .go({
+            cursor: nextPageKey,
+            limit: pageSize
+        })
+
+    return {
+        items: response.data.map(mapToExhibitDto),
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
+}
+
+const deleteExhibit = async (exhibitId: string, customerId: string): Promise<ExhibitMutationResponseDto> => {
+    const exhibit = await getExhibit(exhibitId, customerId)
+
+    const audios: AudioAsset[] = toAudioAsset(exhibit)
+    const images: ImageAsset[] = toImageAsset(exhibit)
+    const qrCode: QrCodeAsset = toQrCodeAsset(exhibit)
+
+    const privateAsset = audios
+        .map(item => item.privatePath)
+        .concat(images.map(item => item.privatePath))
+        .concat([qrCode.privatePath])
+
+    const publicAsset = audios
+        .map(item => item.publicPath)
+        .concat(images.map(item => item.publicPath))
+
+    await ExhibitDao
+        .remove({
+            id: exhibit.id
+        })
+        .go()
+
+    const mutation = {
+        entityId: exhibit.id,
+        entity: exhibit,
+        action: "DELETE",
+        actor: {
+            customerId: exhibit.customerId,
+            identityId: exhibit.identityId
+        },
+        asset: {
+            delete: {
+                private: undefinedIfEmpty(privateAsset),
+                public: undefinedIfEmpty(publicAsset)
+            }
+        },
+    }
+
+    const assetProcessingExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: deleteExhibitStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
+
+    return {
+        id: exhibit.id,
+        executionArn: assetProcessingExecution.executionArn
+    }
+}
 
 const toAudioAsset = (exhibit: Exhibit): AudioAsset[] => {
     return exhibit.langOptions
@@ -108,6 +183,40 @@ const toQrCodeAsset = (exhibit: Exhibit): QrCodeAsset => {
     }
 }
 
+const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
+    return {
+        id: exhibit.id,
+        exhibitionId: exhibit.exhibitionId,
+        referenceName: exhibit.referenceName,
+        qrCodeUrl: `qr-codes/${exhibit.id}.png`,
+        langOptions: exhibit.langOptions.map(opt => {
+            const audio = opt.audio ? {
+                key: `audio/${exhibit.id}_${opt.lang}`,
+                markup: opt.audio.markup,
+                voice: opt.audio.voice,
+            } : undefined
+
+            return {
+                lang: opt.lang,
+                title: opt.title,
+                subtitle: opt.subtitle,
+                description: opt.description,
+                audio: audio
+            }
+        }),
+        images: exhibit.images.map(img => {
+            return {
+                key: img.id,
+                name: img.name
+            }
+        }),
+        status: exhibit.status
+    };
+}
+
 export const exhibitService = {
     createExhibit: createExhibit,
+    getExhibitForCustomer: getExhibitForCustomer,
+    getExhibitsForCustomer: getExhibitsForCustomer,
+    deleteExhibit: deleteExhibit,
 };

@@ -3,7 +3,7 @@ import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
 import {StateMachineInput} from "./model/common";
 import {ExposableMutation} from "./model/mutation";
-import {exhibitService} from "./service/exhibition";
+import {exhibitionService} from "./service/exhibition";
 import {CreateExhibitionDto, createExhibitionSchema, updateExhibitionSchema} from "./schema/exhibition";
 import {handleError, responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
@@ -22,7 +22,7 @@ const exhibitionCreate = async (event: StateMachineInput): Promise<ExposableMuta
         const customerId = uuidId.parse(event.sub)
         const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
-        return await exhibitService.createExhibition(request, customerId, identityId)
+        return await exhibitionService.createExhibition(request, customerId, identityId)
     } catch (err) {
         return handleError(err);
     }
@@ -47,7 +47,7 @@ const exhibitionDelete = async (event: StateMachineInput): Promise<ExposableMuta
         const customerId = uuidId.parse(event.sub)
         const identityId = required.parse(event.header?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
-        return await exhibitService.deleteExhibition(exhibitionId, customerId, identityId)
+        return await exhibitionService.deleteExhibition(exhibitionId, customerId, identityId)
     } catch (err) {
         return handleError(err);
     }
@@ -76,7 +76,7 @@ export const exhibitionUpdate = async (event: StateMachineInput): Promise<Exposa
         if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         if (request.images) validateUniqueEntries(request.images, "name", "Image refs not unique.")
 
-        return await exhibitService.updateExhibition(exhibitionId, request, customerId, identityId)
+        return await exhibitionService.updateExhibition(exhibitionId, request, customerId, identityId)
     } catch (err) {
         return handleError(err);
     }
@@ -99,7 +99,7 @@ const exhibitionGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
     try {
         const exhibitionId = nanoId.parse(event.pathParameters?.["id"])
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-        const exhibition = await exhibitService.getExhibitionForCustomer(exhibitionId, customerId)
+        const exhibition = await exhibitionService.getExhibitionForCustomer(exhibitionId, customerId)
 
         return responseFormatter(200, exhibition)
     } catch (err) {
@@ -124,7 +124,7 @@ const exhibitionGetAll = async (event: APIGatewayProxyEvent): Promise<APIGateway
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const pageSize = z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"])
         const nextPageKey = event.queryStringParameters?.["next-page-key"]
-        const exhibitions = await exhibitService.getExhibitionsForCustomer(customerId, {
+        const exhibitions = await exhibitionService.getExhibitionsForCustomer(customerId, {
             pageSize: pageSize ?? 10,
             nextPageKey: nextPageKey
         })

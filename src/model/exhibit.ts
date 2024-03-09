@@ -120,7 +120,7 @@ export const ExhibitDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["id"],
+                    composite: ["exhibitionId", "id"],
                     casing: "none",
                 },
             },
