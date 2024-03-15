@@ -1,16 +1,19 @@
 import {Exhibit, ExhibitDao} from "../model/exhibit";
-import {nanoid_8, PaginatedResults, Pagination} from "../model/common";
-import {AudioAsset, ImageAsset, QrCodeAsset} from "../model/asset";
-import {CreateExhibitDto, ExhibitDto, ExhibitMutationResponseDto} from "../schema/exhibit";
+import {EntityStructure, nanoid_8, PaginatedResults, Pagination} from "../model/common";
+import {AudioAsset, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset} from "../model/asset";
+import {CreateExhibitDto, ExhibitDto, ExhibitMutationResponseDto, UpdateExhibitDto} from "../schema/exhibit";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {NotFoundException} from "../common/exceptions";
+import * as crypto from 'crypto';
+import {logger} from "../common/logger";
 
 const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN
 const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
+const updateExhibitStepFunctionArn = process.env.UPDATE_EXHIBIT_STEP_FUNCTION_ARN
 
-const createExhibit = async (createExhibit: CreateExhibitDto, customerId: string, identityId: string): Promise<ExhibitMutationResponseDto> => {
+const createExhibit = async (customerId: string, identityId: string, createExhibit: CreateExhibitDto): Promise<ExhibitMutationResponseDto> => {
     const exhibitId = nanoid_8()
     // TODO add audio input validation here
 
@@ -99,6 +102,69 @@ const getExhibitsForCustomer = async (customerId: string, pagination: Pagination
     }
 }
 
+const updateExhibit = async (exhibitId: string, customerId: string, updateExhibit: UpdateExhibitDto): Promise<ExhibitMutationResponseDto> => {
+    const exhibit = await getExhibit(exhibitId, customerId)
+    // TODO add audio input validation here
+
+    const {data: exhibitUpdated} = await ExhibitDao
+        .patch({
+            id: exhibitId
+        })
+        .set({
+            referenceName: updateExhibit.referenceName,
+            langOptions: updateExhibit.langOptions,
+            images: updateExhibit.images,
+            status: "PROCESSING",
+        })
+        .go({
+            response: "all_new"
+        })
+
+    const audios: AudioAsset[] = toAudioAsset(exhibit)
+    const images: ImageAsset[] = toImageAsset(exhibit)
+    const audiosUpdated: AudioAsset[] = toAudioAsset(exhibitUpdated as Exhibit)
+    const imagesUpdated: ImageAsset[] = toImageAsset(exhibitUpdated as Exhibit)
+
+    const audiosToAdd = getDifferent(audiosUpdated, audios) as AudioAsset[]
+    const audiosToDelete = getDifferent(audios, audiosUpdated) as AudioAsset[]
+    const imagesToAdd = getDifferent(imagesUpdated, images) as ImageAsset[]
+    const imagesToDelete = getDifferent(images, imagesUpdated) as ImageAsset[]
+
+    const privateAssetToDelete = privateAsset(audiosToDelete, imagesToDelete)
+    const publicAssetToDelete = publicAsset(audiosToDelete, imagesToDelete)
+
+    const mutation = {
+        entityId: exhibitUpdated.id,
+        entity: exhibitUpdated,
+        action: "UPDATE",
+        actor: {
+            customerId: exhibitUpdated.customerId,
+            identityId: exhibitUpdated.identityId
+        },
+        asset: {
+            images: undefinedIfEmpty(imagesToAdd),
+            audios: undefinedIfEmpty(audiosToAdd),
+            delete: {
+                private: undefinedIfEmpty(privateAssetToDelete),
+                public: undefinedIfEmpty(publicAssetToDelete)
+            }
+        },
+    }
+
+    const assetProcessingExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: updateExhibitStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
+
+    return {
+        id: exhibitUpdated.id!!,
+        executionArn: assetProcessingExecution.executionArn
+    }
+
+}
+
 const deleteExhibit = async (exhibitId: string, customerId: string): Promise<ExhibitMutationResponseDto> => {
     const exhibit = await getExhibit(exhibitId, customerId)
 
@@ -106,14 +172,8 @@ const deleteExhibit = async (exhibitId: string, customerId: string): Promise<Exh
     const images: ImageAsset[] = toImageAsset(exhibit)
     const qrCode: QrCodeAsset = toQrCodeAsset(exhibit)
 
-    const privateAsset = audios
-        .map(item => item.privatePath)
-        .concat(images.map(item => item.privatePath))
-        .concat([qrCode.privatePath])
-
-    const publicAsset = audios
-        .map(item => item.publicPath)
-        .concat(images.map(item => item.publicPath))
+    const privateAssetToDelete = privateAsset(audios, images, [qrCode])
+    const publicAssetToDelete = publicAsset(audios, images)
 
     await ExhibitDao
         .remove({
@@ -131,8 +191,8 @@ const deleteExhibit = async (exhibitId: string, customerId: string): Promise<Exh
         },
         asset: {
             delete: {
-                private: undefinedIfEmpty(privateAsset),
-                public: undefinedIfEmpty(publicAsset)
+                private: undefinedIfEmpty(privateAssetToDelete),
+                public: undefinedIfEmpty(publicAssetToDelete)
             }
         },
     }
@@ -169,8 +229,8 @@ const toImageAsset = (exhibit: Exhibit): ImageAsset[] => {
     return exhibit.images
         .map(img => {
             return {
-                privatePath: `private/${exhibit.identityId}/${img.id}`,
-                publicPath: `asset/exhibit/${exhibit.id}/${img.id}`,
+                privatePath: `private/${exhibit.identityId}/images/${img.id}`,
+                publicPath: `asset/exhibit/${exhibit.id}/images/${img.id}`,
                 name: img.name
             }
         })
@@ -181,6 +241,26 @@ const toQrCodeAsset = (exhibit: Exhibit): QrCodeAsset => {
         privatePath: `private/${exhibit.identityId}/qr-codes/${exhibit.id}.png`,
         value: `/exh/${exhibit.id}`,
     }
+}
+
+const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[]) => {
+    return arr1.filter(
+        option1 => !arr2.some(
+            option2 => H(option1) === H(option2)
+        ),
+    )
+}
+
+const H = (obj: any): string => crypto.createHash("sha256")
+    .update(JSON.stringify(obj))
+    .digest("base64");
+
+const privateAsset = (...args: PrivateAsset[][]): string[] => {
+    return args.flat().map(item => item.privatePath)
+}
+
+const publicAsset = (...args: PublicAsset[][]): string[] => {
+    return args.flat().map(item => item.publicPath)
 }
 
 const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
@@ -206,7 +286,7 @@ const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
         }),
         images: exhibit.images.map(img => {
             return {
-                key: img.id,
+                id: img.id,
                 name: img.name
             }
         }),
@@ -219,4 +299,5 @@ export const exhibitService = {
     getExhibitForCustomer: getExhibitForCustomer,
     getExhibitsForCustomer: getExhibitsForCustomer,
     deleteExhibit: deleteExhibit,
+    updateExhibit: updateExhibit,
 };

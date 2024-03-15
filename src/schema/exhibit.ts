@@ -34,7 +34,7 @@ export const updateExhibitSchema = z.object({
         }),
     })),
     images: z.array(z.object({
-        key: z.string().min(1),
+        id: z.string().min(1),
         name: z.string().min(1),
     })).optional()
 })
@@ -63,7 +63,7 @@ export interface ExhibitDto {
         }
     }[],
     images: {
-        key: string,
+        id: string,
         name: string
     }[],
     status: string

@@ -1,7 +1,7 @@
 {
   "name": "muse-crm-server",
   "version": "1.0.0",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@aws-lambda-powertools/logger": "^1.17.0",
     "@aws-sdk/client-dynamodb": "^3.484.0",

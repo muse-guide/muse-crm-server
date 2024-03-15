@@ -1,8 +1,8 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, required, uuidId} from "./schema/validation";
+import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
 import {exhibitService} from "./service/exhibit";
-import {CreateExhibitDto, createExhibitSchema} from "./schema/exhibit";
+import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
@@ -20,7 +20,10 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const identityId = required.parse(event.headers?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
-        const response = await exhibitService.createExhibit(request, customerId, identityId)
+        if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
+        if (request.images) validateUniqueEntries(request.images, "id", "Image refs not unique.")
+
+        const response = await exhibitService.createExhibit(customerId, identityId, request)
         return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);
@@ -106,6 +109,34 @@ const exhibitDelete = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
 
 export const exhibitDeleteHandler = middy(exhibitDelete);
 exhibitDeleteHandler
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))
+
+/**
+ * Updates an existing exhibit
+ *
+ * @param event - The API Gateway proxy event containing updated exhibit data
+ * @returns ExposableMutation with updated exhibit
+ */
+export const exhibitUpdate = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        const request = updateExhibitSchema.parse(event.body)
+        const exhibitId = nanoId.parse(event.pathParameters?.["id"])
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+
+        if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
+        if (request.images) validateUniqueEntries(request.images, "id", "Image refs not unique.")
+
+        const response = await exhibitService.updateExhibit(exhibitId, customerId, request)
+        return responseFormatter(200, response)
+    } catch (err) {
+        return restHandleError(err);
+    }
+}
+
+export const exhibitUpdateHandler = middy(exhibitUpdate);
+exhibitUpdateHandler
     .use(httpJsonBodyParser({
         disableContentTypeError: true
     }))
