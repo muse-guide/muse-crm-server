@@ -1,11 +1,11 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {required} from "./schema/validation";
-import * as AWS from 'aws-sdk';
 import {DeleteAsset} from "./model/asset";
 import {handleError} from "./common/response-formatter";
+import {DeleteObjectsCommand} from "@aws-sdk/client-s3";
+import {s3Client} from "./common/aws-clients";
 
-const s3 = new AWS.S3();
 const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 const publicAssetBucket = required.parse(process.env.APP_ASSET_BUCKET)
 
@@ -20,29 +20,35 @@ const deleteAssetHandler = async (input: DeleteAsset) => {
     const publicAsset = input.public
 
     try {
-        if (privateAsset) await Promise.all(
-            privateAsset
-                .map(path => {
-                        return {
-                            Bucket: privateAssetBucket,
-                            Key: path,
-                        }
-                    }
-                )
-                .map(async (item) => await s3.deleteObject(item).promise())
-        )
+        if (privateAsset) {
+            const objects = privateAsset.map(path => {
+                return {Key: path}
+            })
+            const command = new DeleteObjectsCommand({
+                Bucket: privateAssetBucket,
+                Delete: {
+                    Objects: objects,
+                    Quiet: true,
+                }
+            });
 
-        if (publicAsset) await Promise.all(
-            publicAsset
-                .map(path => {
-                        return {
-                            Bucket: publicAssetBucket,
-                            Key: path,
-                        }
-                    }
-                )
-                .map(async (item) => await s3.deleteObject(item).promise())
-        )
+            await s3Client.send(command);
+        }
+
+        if (publicAsset) {
+            const objects = publicAsset.map(path => {
+                return {Key: path}
+            })
+            const command = new DeleteObjectsCommand({
+                Bucket: publicAssetBucket,
+                Delete: {
+                    Objects: objects,
+                    Quiet: true,
+                }
+            });
+
+            await s3Client.send(command);
+        }
     } catch (err) {
         return handleError(err);
     }

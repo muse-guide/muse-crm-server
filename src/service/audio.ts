@@ -1,7 +1,7 @@
-import {PollyClient, SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, SynthesizeSpeechCommandOutput} from "@aws-sdk/client-polly";
+import {PollyClient, SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, SynthesizeSpeechCommandOutput, VoiceId} from "@aws-sdk/client-polly";
 import {LanguageCode} from "@aws-sdk/client-polly/dist-types/models/models_0";
 import {AudioGenerationException} from "../common/exceptions";
-import {AudioAsset, Voice} from "../model/asset";
+import {AudioAsset, AudioInput, Voice} from "../model/asset";
 
 export interface AudioGeneratorInput {
     lang: string,
@@ -10,7 +10,9 @@ export interface AudioGeneratorInput {
 
 export interface AudioGenerator {
     voice: string
+
     synthesize(input: AudioGeneratorInput): Promise<Uint8Array>
+
     normalize(markup: string): string
 }
 
@@ -20,6 +22,12 @@ export class PollyAudioGenerator implements AudioGenerator {
 
     voice: Voice = "FEMALE_1"
 
+    voiceMappings = new Map<string, VoiceId>([
+        ["pl-PL", "Ola"],
+        ["en-GB", "Emma"],
+        ["es-ES", "Lucia"]
+    ])
+
     async synthesize(input: AudioGeneratorInput): Promise<Uint8Array> {
         const normalized = this.normalize(input.markup)
         const ttsInput: SynthesizeSpeechCommandInput = { // SynthesizeSpeechInput
@@ -28,7 +36,7 @@ export class PollyAudioGenerator implements AudioGenerator {
             OutputFormat: "mp3",
             Text: normalized,
             TextType: "ssml",
-            VoiceId: "Ola"
+            VoiceId: this.voiceMappings.get(input.lang) ?? undefined
         };
 
         const command = new SynthesizeSpeechCommand(ttsInput);
@@ -49,7 +57,7 @@ class AudioService {
         new PollyAudioGenerator()
     ]
 
-    generate(input: AudioAsset) {
+    generate(input: AudioInput) {
         const mp3 = this.audioGenerators
             .find(gen => gen.voice === input.voice)
             ?.synthesize({

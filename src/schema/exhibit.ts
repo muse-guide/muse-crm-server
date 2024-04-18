@@ -1,16 +1,18 @@
 import {z} from "zod";
+import {supportedLanguages, supportedVoices} from "../model/common";
 
 export const createExhibitSchema = z.object({
-    referenceName: z.string().min(1).max(64),
     exhibitionId: z.string().length(8),
+    referenceName: z.string().min(1).max(64),
+    number: z.number().min(1),
     langOptions: z.array(z.object({
-        lang: z.enum(["pl-PL", "en-GB", "es-ES"]),
+        lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(64),
         subtitle: z.string().min(1).max(64),
         description: z.string().min(1).max(256).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(1024),
-            voice: z.enum(["FEMALE_1", "MALE_1"])
+            markup: z.string().min(1).max(1000),
+            voice: z.enum(supportedVoices),
         }).optional(),
     })).nonempty(),
     images: z.array(z.object({
@@ -23,15 +25,16 @@ export type CreateExhibitDto = z.infer<typeof createExhibitSchema>;
 
 export const updateExhibitSchema = z.object({
     referenceName: z.string().min(1).max(64).optional(),
+    number: z.number().min(1).optional(),
     langOptions: z.array(z.object({
-        lang: z.enum(["pl-PL", "en-GB", "es-ES"]),
+        lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(64),
         subtitle: z.string().min(1).max(64),
         description: z.string().min(1).max(256).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(2048),
-            voice: z.enum(["FEMALE_1", "MALE_1"])
-        }),
+            markup: z.string().min(1).max(1000),
+            voice: z.enum(supportedVoices),
+        }).optional(),
     })),
     images: z.array(z.object({
         id: z.string().min(1),
@@ -50,6 +53,7 @@ export interface ExhibitDto {
     id: string,
     exhibitionId: string,
     referenceName: string,
+    number: number,
     qrCodeUrl: string,
     langOptions: {
         lang: string,

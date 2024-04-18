@@ -1,5 +1,6 @@
 import {Entity, EntityItem} from "electrodb";
 import {dynamoClient} from "../common/aws-clients";
+import {status, supportedLanguages, supportedVoices} from "./common";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
 
@@ -31,6 +32,10 @@ export const ExhibitDao = new Entity(
                 type: "string",
                 required: true,
             },
+            number: {
+                type: "number",
+                required: true,
+            },
             langOptions: {
                 type: "list",
                 required: true,
@@ -38,7 +43,7 @@ export const ExhibitDao = new Entity(
                     type: "map",
                     properties: {
                         lang: {
-                            type: "string",
+                            type: supportedLanguages,
                             required: true,
                         },
                         title: {
@@ -62,7 +67,7 @@ export const ExhibitDao = new Entity(
                                     required: true,
                                 },
                                 voice: {
-                                    type: ["FEMALE_1", "MALE_1"] as const,
+                                    type: supportedVoices,
                                     required: true,
                                 },
                             }
@@ -88,7 +93,7 @@ export const ExhibitDao = new Entity(
                 },
             },
             status: {
-                type: ["PROCESSING", "ACTIVE", "ERROR"] as const,
+                type: status,
                 required: true,
             },
             version: {
@@ -120,7 +125,7 @@ export const ExhibitDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["exhibitionId", "id"],
+                    composite: ["exhibitionId", "referenceName"],
                     casing: "none",
                 },
             },

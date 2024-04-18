@@ -1,13 +1,12 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {required} from "./schema/validation";
-import * as AWS from 'aws-sdk';
-import {PutObjectRequest} from 'aws-sdk/clients/s3';
 import {handleError} from "./common/response-formatter";
 import {audioService} from "./service/audio";
 import {AudioAsset} from "./model/asset";
+import {PutObjectCommand} from "@aws-sdk/client-s3";
+import {s3Client} from "./common/aws-clients";
 
-const s3 = new AWS.S3();
 const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 const publicAssetBucket = required.parse(process.env.APP_ASSET_BUCKET)
 
@@ -22,24 +21,22 @@ const audioProcessor = async (audios: AudioAsset[]) => {
 const processSingle = async (audio: AudioAsset) => {
     const mp3 = await audioService.generate(audio)
 
-    const privateAsset: PutObjectRequest = {
+    const privateAsset = new PutObjectCommand({
         Bucket: privateAssetBucket,
         Key: audio.privatePath,
         Body: mp3,
-        ContentEncoding: 'base64',
         ContentType: 'audio/mpeg'
-    };
-    const publicAsset: PutObjectRequest = {
+    });
+    const publicAsset = new PutObjectCommand({
         Bucket: publicAssetBucket,
         Key: audio.publicPath,
         Body: mp3,
-        ContentEncoding: 'base64',
         ContentType: 'audio/mpeg'
-    };
+    });
 
     await Promise.all([
-        s3.upload(privateAsset).promise(),
-        s3.upload(publicAsset).promise(),
+        s3Client.send(privateAsset),
+        s3Client.send(publicAsset),
     ])
 }
 

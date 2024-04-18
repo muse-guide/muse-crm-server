@@ -1,5 +1,6 @@
 import {Entity, EntityItem} from "electrodb";
 import {dynamoClient} from "../common/aws-clients";
+import {status, supportedLanguages} from "./common";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
 
@@ -56,7 +57,7 @@ export const ExhibitionDao = new Entity(
                     type: "map",
                     properties: {
                         lang: {
-                            type: "string",
+                            type: supportedLanguages,
                             required: true,
                         },
                         title: {
@@ -96,7 +97,7 @@ export const ExhibitionDao = new Entity(
                 },
             },
             status: {
-                type: ["ACTIVE", "ERROR"] as const,
+                type: status,
                 required: true,
             },
             version: {

@@ -155,6 +155,7 @@ const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateEx
 const mapImages = (exhibitionId: string, identityId: string, refList: ImagesInput[]) => {
     return refList.map((ref: ImagesInput) => {
         return {
+            tmpPath: `public/tmp/image/${ref.key}`,
             privatePath: `private/${identityId}/${ref.key}`,
             publicPath: `asset/exhibition/${exhibitionId}/${ref.key}`,
             name: ref.name
@@ -162,7 +163,7 @@ const mapImages = (exhibitionId: string, identityId: string, refList: ImagesInpu
     })
 }
 
-const getDifferent = (arr1: ImageAsset[], arr2: ImageAsset[]) => {
+const getDifferent = (arr1: any[], arr2: any[]) => {
     return arr1.filter(
         option1 => !arr2.some(
             option2 => option1.privatePath === option2.privatePath

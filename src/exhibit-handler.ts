@@ -1,7 +1,7 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
-import {exhibitService} from "./service/exhibit";
+import {exhibitService, ExhibitsFilter} from "./service/exhibit";
 import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
@@ -68,16 +68,18 @@ exhibitGetHandler
 const exhibitGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-        const exhibitionId = event.queryStringParameters?.["exhibition-id"]
 
-        const pageSize = z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"])
-        const nextPageKey = event.queryStringParameters?.["next-page-key"]
-        const pagination = {
-            pageSize: pageSize ?? 10,
-            nextPageKey: nextPageKey
+        const filters: ExhibitsFilter = {
+            exhibitionId: event.queryStringParameters?.["exhibition-id"],
+            referenceNamePrefix: event.queryStringParameters?.["reference-name-prefix"]
         }
 
-        const exhibits = await exhibitService.getExhibitsForCustomer(customerId, pagination, exhibitionId)
+        const pagination = {
+            pageSize: z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"]) ?? 10,
+            nextPageKey: event.queryStringParameters?.["next-page-key"]
+        }
+
+        const exhibits = await exhibitService.getExhibitsForCustomer(customerId, pagination, filters)
         return responseFormatter(200, exhibits)
     } catch (err) {
         return restHandleError(err);

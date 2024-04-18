@@ -1,9 +1,12 @@
 import DynamoDB from "aws-sdk/clients/dynamodb";
-import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
+import {SFNClient} from "@aws-sdk/client-sfn";
 import {PollyClient} from "@aws-sdk/client-polly";
+import {S3Client} from "@aws-sdk/client-s3";
 
 export const dynamoClient = new DynamoDB.DocumentClient();
 
-export  const sfnClient = new SFNClient({})
+export const s3Client = new S3Client({});
+
+export const sfnClient = new SFNClient({})
 
 export const pollyClient = new PollyClient();

@@ -11,15 +11,23 @@ export interface QrCodeAsset extends PrivateAsset {
 }
 
 export interface ImageAsset extends PrivateAsset, PublicAsset {
+    thumbnails: ThumbnailAsset,
+    tmpPath: string,
     name: string,
+}
+
+export interface ThumbnailAsset extends PrivateAsset, PublicAsset {
 }
 
 export type Voice = "FEMALE_1" | "MALE_1"
 
-export interface AudioAsset extends PrivateAsset, PublicAsset {
+export interface AudioInput {
     markup: string,
     voice: Voice,
     lang: string
+}
+
+export interface AudioAsset extends AudioInput, PrivateAsset, PublicAsset {
 }
 
 export interface DeleteAsset {

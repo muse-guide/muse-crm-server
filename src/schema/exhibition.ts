@@ -1,11 +1,12 @@
 import {z} from "zod";
+import {supportedLanguages} from "../model/common";
 
 export const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
     institutionId: z.string().length(8),
     includeInstitutionInfo: z.boolean(),
     langOptions: z.array(z.object({
-        lang: z.string().length(2),
+        lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(64),
         subtitle: z.string().min(1).max(64),
         description: z.string().min(1).max(256).optional(),
@@ -22,7 +23,7 @@ export const updateExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(64),
     includeInstitutionInfo: z.boolean(),
     langOptions: z.array(z.object({
-        lang: z.string().length(2),
+        lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(64),
         subtitle: z.string().min(1).max(64),
         description: z.string().min(1).max(256).optional(),
