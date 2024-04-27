@@ -71,7 +71,7 @@ const exhibitGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
 
         const filters: ExhibitsFilter = {
             exhibitionId: event.queryStringParameters?.["exhibition-id"],
-            referenceNamePrefix: event.queryStringParameters?.["reference-name-prefix"]
+            referenceNameLike: event.queryStringParameters?.["reference-name-like"]
         }
 
         const pagination = {

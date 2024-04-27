@@ -33,7 +33,7 @@ export const ExhibitDao = new Entity(
                 required: true,
             },
             number: {
-                type: "number",
+                type: "string",
                 required: true,
             },
             langOptions: {
@@ -125,7 +125,7 @@ export const ExhibitDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["exhibitionId", "referenceName"],
+                    composite: ["exhibitionId", "number"],
                     casing: "none",
                 },
             },

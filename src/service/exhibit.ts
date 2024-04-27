@@ -12,6 +12,8 @@ const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_AR
 const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
 const updateExhibitStepFunctionArn = process.env.UPDATE_EXHIBIT_STEP_FUNCTION_ARN
 
+const RESOURCE_NUMBER_LENGTH = 6
+const ZEROS = "000000"
 const createExhibit = async (customerId: string, identityId: string, createExhibit: CreateExhibitDto): Promise<ExhibitMutationResponseDto> => {
     const exhibitId = nanoid_8()
     // TODO add audio input validation here
@@ -22,7 +24,7 @@ const createExhibit = async (customerId: string, identityId: string, createExhib
         identityId: identityId,
         exhibitionId: createExhibit.exhibitionId,
         referenceName: createExhibit.referenceName,
-        number: createExhibit.number,
+        number: addLeadingZeros(createExhibit.number),
         langOptions: createExhibit.langOptions,
         images: createExhibit.images,
         status: "PROCESSING",
@@ -84,7 +86,7 @@ const getExhibitForCustomer = async (exhibitId: string, customerId: string): Pro
 
 export interface ExhibitsFilter {
     exhibitionId?: string,
-    referenceNamePrefix?: string
+    referenceNameLike?: string
 }
 
 const getExhibitsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitsFilter): Promise<PaginatedResults> => {
@@ -94,9 +96,18 @@ const getExhibitsForCustomer = async (customerId: string, pagination: Pagination
         .byCustomer({
             customerId: customerId,
             exhibitionId: filters?.exhibitionId
-        }).begins({
-            referenceName: filters?.referenceNamePrefix
         })
+        .gt({
+            number: ZEROS
+        })
+        .where(
+            (attr, op) => {
+                if (filters?.referenceNameLike) {
+                    return op.contains(attr.referenceName, filters.referenceNameLike)
+                }
+                return op.exists(attr.customerId)
+            }
+        )
         .go({
             cursor: nextPageKey,
             count: pageSize,
@@ -121,7 +132,7 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
         .set({
             exhibitionId: exhibit.exhibitionId,
             referenceName: updateExhibit.referenceName,
-            number: updateExhibit.number,
+            number: addLeadingZeros(updateExhibit.number),
             langOptions: updateExhibit.langOptions,
             images: updateExhibit.images,
             status: "PROCESSING",
@@ -280,12 +291,24 @@ const publicAsset = (...args: PublicAsset[][]): string[] => {
     return args.flat().map(item => item.publicPath)
 }
 
+function addLeadingZeros(num: number): string {
+    let numStr = num.toString();
+    while (numStr.length < RESOURCE_NUMBER_LENGTH) {
+        numStr = '0' + numStr;
+    }
+    return numStr;
+}
+
+function convertStringToNumber(str: string): number {
+    return parseInt(str, 10);
+}
+
 const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
     return {
         id: exhibit.id,
         exhibitionId: exhibit.exhibitionId,
         referenceName: exhibit.referenceName,
-        number: exhibit.number,
+        number: convertStringToNumber(exhibit.number),
         qrCodeUrl: `qr-codes/${exhibit.id}.png`,
         langOptions: exhibit.langOptions.map(opt => {
             const audio = opt.audio ? {

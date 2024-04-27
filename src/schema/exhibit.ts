@@ -24,8 +24,8 @@ export const createExhibitSchema = z.object({
 export type CreateExhibitDto = z.infer<typeof createExhibitSchema>;
 
 export const updateExhibitSchema = z.object({
-    referenceName: z.string().min(1).max(64).optional(),
-    number: z.number().min(1).optional(),
+    referenceName: z.string().min(1).max(64),
+    number: z.number().min(1),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(64),
