@@ -1,7 +1,7 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
-import {exhibitService, ExhibitsFilter} from "./service/exhibit";
+import {exhibitService, ExhibitionsFilter} from "./service/exhibit";
 import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
@@ -69,7 +69,7 @@ const exhibitGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
     try {
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
-        const filters: ExhibitsFilter = {
+        const filters: ExhibitionsFilter = {
             exhibitionId: event.queryStringParameters?.["exhibition-id"],
             referenceNameLike: event.queryStringParameters?.["reference-name-like"]
         }

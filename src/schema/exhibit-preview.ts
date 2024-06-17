@@ -1,6 +1,7 @@
-export interface ExhibitionPreviewDto {
+export interface ExhibitPreviewDto {
     id: string;
-    institutionId?: string;
+    exhibitionId: string;
+    number: number;
     lang: string;
     langOptions: string[];
     title: string;

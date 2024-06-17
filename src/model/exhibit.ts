@@ -138,7 +138,7 @@ export const ExhibitDao = new Entity(
                 },
                 sk: {
                     field: "gsi2sk",
-                    composite: ["id"],
+                    composite: ["number"],
                     casing: "none",
                 },
             },

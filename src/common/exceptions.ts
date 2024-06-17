@@ -17,9 +17,10 @@ export class BadRequestException extends BaseException {
     }
 }
 
+// 404 is rewrite to 200 in CDN
 export class NotFoundException extends BaseException {
     constructor(message: string) {
-        super(404, message);
+        super(400, message);
     }
 }
 

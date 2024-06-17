@@ -3,7 +3,7 @@ import {nanoId, required} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
-import {exhibitAppService} from "./service/exhibition-preview";
+import {exhibitPreviewService} from "./service/exhibition-preview";
 
 /**
  * Gets an exhibition by ID for app
@@ -11,11 +11,11 @@ import {exhibitAppService} from "./service/exhibition-preview";
  * @param event - The API Gateway proxy event
  * @returns The API Gateway proxy result with exhibition data
  */
-const exhibitionGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+const exhibitionPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const exhibitionId = nanoId.parse(event.pathParameters?.["id"])
         const lang = required.parse(event.queryStringParameters?.["lang"])
-        const exhibition = await exhibitAppService.getExhibitionForApp(exhibitionId, lang)
+        const exhibition = await exhibitPreviewService.getExhibitionPreview(exhibitionId, lang)
 
         return responseFormatter(200, exhibition)
     } catch (err) {
@@ -23,6 +23,6 @@ const exhibitionGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
     }
 };
 
-export const exhibitionGetHandler = middy(exhibitionGet);
-exhibitionGetHandler
+export const exhibitionPreviewGetHandler = middy(exhibitionPreviewGet);
+exhibitionPreviewGetHandler
     .use(cors())

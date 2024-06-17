@@ -2,6 +2,7 @@ import {PollyClient, SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, Synt
 import {LanguageCode} from "@aws-sdk/client-polly/dist-types/models/models_0";
 import {AudioGenerationException} from "../common/exceptions";
 import {AudioAsset, AudioInput, Voice} from "../model/asset";
+import {pollyClient} from "../common/aws-clients";
 
 export interface AudioGeneratorInput {
     lang: string,
@@ -18,7 +19,7 @@ export interface AudioGenerator {
 
 export class PollyAudioGenerator implements AudioGenerator {
 
-    client = new PollyClient()
+    client = pollyClient
 
     voice: Voice = "FEMALE_1"
 

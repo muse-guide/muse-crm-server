@@ -13,9 +13,11 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
         throw new NotFoundException("Exhibition does not exist.")
     }
 
-    const requestedLangOption = exhibition.langOptions.filter((opt: { lang: string; }) => opt.lang === lang)
-    const langOption = requestedLangOption.length > 0 ? requestedLangOption[0] : exhibition.langOptions[0]
-    const images = exhibition.images.map(img => img.publicPath)
+    const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
+    const langOption = requestedLangOption ?? exhibition.langOptions[0]
+
+    const images = exhibition.images.map(img => `asset/exhibitions/${exhibition.id}/images/${img.id}`)
+    const audio = langOption.audio ? `asset/exhibitions/${exhibition.id}/audio/${langOption.lang}` : undefined
 
     return {
         id: exhibition.id,
@@ -25,10 +27,11 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
         title: langOption.title,
         subtitle: langOption.subtitle,
         description: langOption.description,
-        imageUrls: images
+        imageUrls: images,
+        audio: audio
     }
 }
 
-export const exhibitAppService = {
-    getExhibitionForApp: getExhibitionPreview
+export const exhibitPreviewService = {
+    getExhibitionPreview: getExhibitionPreview
 };

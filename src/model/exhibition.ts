@@ -1,6 +1,6 @@
 import {Entity, EntityItem} from "electrodb";
 import {dynamoClient} from "../common/aws-clients";
-import {status, supportedLanguages} from "./common";
+import {status, supportedLanguages, supportedVoices} from "./common";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
 
@@ -32,20 +32,6 @@ export const ExhibitionDao = new Entity(
                 type: "string",
                 required: true,
             },
-            qrCode: {
-                type: "map",
-                required: true,
-                properties: {
-                    privatePath: {
-                        type: "string",
-                        required: true,
-                    },
-                    value: {
-                        type: "string",
-                        required: true,
-                    },
-                },
-            },
             includeInstitutionInfo: {
                 type: "boolean",
                 required: true,
@@ -72,6 +58,20 @@ export const ExhibitionDao = new Entity(
                             type: "string",
                             required: false,
                         },
+                        audio: {
+                            type: "map",
+                            required: false,
+                            properties: {
+                                markup: {
+                                    type: "string",
+                                    required: true,
+                                },
+                                voice: {
+                                    type: supportedVoices,
+                                    required: true,
+                                },
+                            }
+                        },
                     },
                 },
             },
@@ -81,11 +81,7 @@ export const ExhibitionDao = new Entity(
                 items: {
                     type: "map",
                     properties: {
-                        privatePath: {
-                            type: "string",
-                            required: true,
-                        },
-                        publicPath: {
+                        id: {
                             type: "string",
                             required: true,
                         },
@@ -112,10 +108,12 @@ export const ExhibitionDao = new Entity(
                 pk: {
                     field: "pk",
                     composite: ["id"],
+                    casing: "none",
                 },
                 sk: {
                     field: "sk",
                     composite: ["id"],
+                    casing: "none",
                 },
             },
             byCustomer: {
@@ -123,10 +121,12 @@ export const ExhibitionDao = new Entity(
                 pk: {
                     field: "gsi1pk",
                     composite: ["customerId"],
+                    casing: "none",
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["id"],
+                    composite: ["institutionId"],
+                    casing: "none",
                 },
             },
             byInstitution: {
@@ -134,10 +134,12 @@ export const ExhibitionDao = new Entity(
                 pk: {
                     field: "gsi2pk",
                     composite: ["institutionId"],
+                    casing: "none",
                 },
                 sk: {
                     field: "gsi2sk",
                     composite: ["id"],
+                    casing: "none",
                 },
             },
         },

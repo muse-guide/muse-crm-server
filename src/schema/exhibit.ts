@@ -3,15 +3,15 @@ import {supportedLanguages, supportedVoices} from "../model/common";
 
 export const createExhibitSchema = z.object({
     exhibitionId: z.string().length(8),
-    referenceName: z.string().min(1).max(64),
+    referenceName: z.string().min(1).max(200),
     number: z.number().min(1),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
-        title: z.string().min(1).max(64),
-        subtitle: z.string().min(1).max(64),
-        description: z.string().min(1).max(256).optional(),
+        title: z.string().min(1).max(120),
+        subtitle: z.string().min(1).max(200),
+        description: z.string().min(1).max(2000).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(1000),
+            markup: z.string().min(1).max(2000),
             voice: z.enum(supportedVoices),
         }).optional(),
     })).nonempty(),
@@ -24,28 +24,23 @@ export const createExhibitSchema = z.object({
 export type CreateExhibitDto = z.infer<typeof createExhibitSchema>;
 
 export const updateExhibitSchema = z.object({
-    referenceName: z.string().min(1).max(64),
+    referenceName: z.string().min(1).max(200),
     number: z.number().min(1),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
-        title: z.string().min(1).max(64),
-        subtitle: z.string().min(1).max(64),
-        description: z.string().min(1).max(256).optional(),
+        title: z.string().min(1).max(120),
+        subtitle: z.string().min(1).max(200),
+        description: z.string().min(1).max(2000).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(1000),
+            markup: z.string().min(1).max(2000),
             voice: z.enum(supportedVoices),
         }).optional(),
     })),
     images: z.array(z.object({
         id: z.string().min(1),
         name: z.string().min(1),
-    })).optional()
+    }))
 })
-
-export type ExhibitMutationResponseDto = {
-    id: string,
-    executionArn?: string
-}
 
 export type UpdateExhibitDto = z.infer<typeof updateExhibitSchema>;
 

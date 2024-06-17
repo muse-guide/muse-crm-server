@@ -1,10 +1,66 @@
 import {NotFoundException} from "../common/exceptions";
 import {Exhibition, ExhibitionDao} from "../model/exhibition";
-import {EMPTY_STRING, ImagesInput, nanoid_8, PaginatedResults, Pagination} from "../model/common";
-import {ImageAsset, QrCodeAsset} from "../model/asset";
-import {ExposableMutation} from "../model/mutation";
+import {nanoid_8, PaginatedResults, Pagination} from "../model/common";
 import {CreateExhibitionDto, ExhibitionDto, UpdateExhibitionDto} from "../schema/exhibition";
-import {trimIdentity, undefinedIfEmpty} from "../common/functions";
+import {undefinedIfEmpty} from "../common/functions";
+import {sfnClient} from "../common/aws-clients";
+import {StartExecutionCommand} from "@aws-sdk/client-sfn";
+import {prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
+import {MutationResponseDto} from "../schema/common";
+
+const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
+const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
+const updateExhibitionStepFunctionArn = process.env.UPDATE_EXHIBITION_STEP_FUNCTION_ARN
+
+const createExhibition = async (customerId: string, identityId: string, createExhibition: CreateExhibitionDto): Promise<MutationResponseDto> => {
+    const exhibitionId = nanoid_8()
+    // TODO add audio input validation here
+
+    const exhibition: Exhibition = {
+        id: exhibitionId,
+        customerId: customerId,
+        identityId: identityId,
+        institutionId: createExhibition.institutionId,
+        includeInstitutionInfo: createExhibition.includeInstitutionInfo,
+        referenceName: createExhibition.referenceName,
+        langOptions: createExhibition.langOptions,
+        images: createExhibition.images,
+        status: "PROCESSING",
+    }
+
+    const {data: exhibitionCreated} = await ExhibitionDao
+        .create(exhibition)
+        .go()
+
+    const {audios, images, qrCode} = prepareAssetsForCreation(exhibitionCreated);
+
+    const mutation = {
+        entityId: exhibitionCreated.id,
+        entity: exhibitionCreated,
+        action: "CREATE",
+        actor: {
+            customerId: exhibitionCreated.customerId,
+            identityId: identityId
+        },
+        asset: {
+            qrCode: qrCode,
+            images: undefinedIfEmpty(images),
+            audios: undefinedIfEmpty(audios)
+        },
+    }
+
+    const assetProcessingExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: createExhibitionStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
+
+    return {
+        id: exhibitionCreated.id,
+        executionArn: assetProcessingExecution.executionArn
+    }
+}
 
 const getExhibition = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
     const {data: exhibition} = await ExhibitionDao
@@ -24,16 +80,29 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
     return mapToExhibitionDto(exhibition)
 }
 
-const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination): Promise<PaginatedResults> => {
+export interface ExhibitionsFilter {
+    referenceNameLike?: string
+}
+
+const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults> => {
     const {pageSize, nextPageKey} = pagination
     const response = await ExhibitionDao
         .query
         .byCustomer({
             customerId: customerId
         })
+        .where(
+            (attr, op) => {
+                if (filters?.referenceNameLike) {
+                    return op.contains(attr.referenceName, filters.referenceNameLike)
+                }
+                return op.exists(attr.customerId)
+            }
+        )
         .go({
             cursor: nextPageKey,
-            limit: pageSize
+            limit: pageSize,
+            pages: "all"
         })
 
     return {
@@ -43,52 +112,62 @@ const getExhibitionsForCustomer = async (customerId: string, pagination: Paginat
     }
 }
 
-const createExhibition = async (createExhibition: CreateExhibitionDto, customerId: string, identityId: string): Promise<ExposableMutation> => {
-    const exhibitionId = nanoid_8()
-    const images = mapImages(exhibitionId, identityId, createExhibition.images)
-    const qrCode: QrCodeAsset = {
-        privatePath: `private/${identityId}/qr-codes/${nanoid_8()}.png`,
-        value: `/col/${exhibitionId}`,
-    }
+const updateExhibition = async (exhibitionId: string, customerId: string, updateExhibition: UpdateExhibitionDto): Promise<MutationResponseDto> => {
+    const exhibition = await getExhibition(exhibitionId, customerId)
+    // TODO add audio input validation here
 
-    const exhibition: Exhibition = {
-        ...createExhibition,
-        id: exhibitionId,
-        customerId: customerId,
-        identityId: identityId,
-        qrCode: qrCode,
-        images: images,
-        status: "ACTIVE",
-    }
+    const {data: exhibitionUpdated} = await ExhibitionDao
+        .patch({
+            id: exhibitionId
+        }).set({
+            institutionId: exhibition.institutionId,
+            referenceName: updateExhibition.referenceName,
+            includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
+            langOptions: updateExhibition.langOptions,
+            images: updateExhibition.images,
+            status: "PROCESSING",
+        })
+        .go({
+            response: "all_new"
+        })
 
-    const {data: exhibitionCreated} = await ExhibitionDao
-        .create(exhibition)
-        .go()
+    const assets = prepareAssetForUpdate(exhibition, exhibitionUpdated);
 
-    return {
-        entityId: exhibitionCreated.id,
-        entity: exhibitionCreated,
-        action: "CREATE",
+    const mutation = {
+        entityId: exhibitionUpdated.id,
+        entity: exhibitionUpdated,
+        action: "UPDATE",
         actor: {
-            customerId: exhibitionCreated.customerId,
-            identityId: identityId
+            customerId: exhibitionUpdated.customerId,
+            identityId: exhibitionUpdated.identityId
         },
         asset: {
-            qrCode: qrCode,
-            images: undefinedIfEmpty(images)
+            images: undefinedIfEmpty(assets.imagesToAdd),
+            audios: undefinedIfEmpty(assets.audiosToAdd),
+            delete: {
+                private: undefinedIfEmpty(assets.privateAssetToDelete),
+                public: undefinedIfEmpty(assets.publicAssetToDelete)
+            }
         },
+    }
+
+    const assetProcessingExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: updateExhibitionStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
+
+    return {
+        id: exhibitionUpdated.id!!,
+        executionArn: assetProcessingExecution.executionArn
     }
 }
 
-const deleteExhibition = async (exhibitionId: string, customerId: string, identityId: string): Promise<ExposableMutation> => {
+const deleteExhibition = async (exhibitionId: string, customerId: string): Promise<MutationResponseDto> => {
     const exhibition = await getExhibition(exhibitionId, customerId)
 
-    const privateAsset = exhibition.images
-        .map(img => img.privatePath)
-        .concat([exhibition.qrCode.privatePath])
-
-    const publicAsset = exhibition.images
-        .map(img => img.publicPath)
+    const {privateAssetToDelete, publicAssetToDelete} = prepareAssetsForDeletion(exhibition)
 
     await ExhibitionDao
         .remove({
@@ -96,79 +175,33 @@ const deleteExhibition = async (exhibitionId: string, customerId: string, identi
         })
         .go()
 
-
-    return {
+    const mutation = {
         entityId: exhibition.id,
         entity: exhibition,
         action: "DELETE",
         actor: {
             customerId: exhibition.customerId,
-            identityId: identityId
+            identityId: exhibition.identityId
         },
         asset: {
             delete: {
-                private: undefinedIfEmpty(privateAsset),
-                public: undefinedIfEmpty(publicAsset)
+                private: undefinedIfEmpty(privateAssetToDelete),
+                public: undefinedIfEmpty(publicAssetToDelete)
             }
         },
     }
-}
 
-const updateExhibition = async (exhibitionId: string, updateExhibition: UpdateExhibitionDto, customerId: string, identityId: string): Promise<ExposableMutation> => {
-    const exhibition = await getExhibition(exhibitionId, customerId)
-    const imagesUpdated = mapImages(exhibitionId, identityId, updateExhibition.images)
-
-    await ExhibitionDao
-        .patch({
-            id: exhibitionId
-        }).set({
-            referenceName: updateExhibition.referenceName,
-            includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
-            langOptions: updateExhibition.langOptions,
-            images: imagesUpdated,
-        })
-        .go()
-
-    const imagesToAdd = getDifferent(imagesUpdated, exhibition.images)
-    const imagesToDelete = getDifferent(exhibition.images, imagesUpdated)
-    const privateImages = imagesToDelete.map(img => img.privatePath)
-    const publicImages = imagesToDelete.map(img => img.publicPath)
+    const assetProcessingExecution = await sfnClient.send(
+        new StartExecutionCommand({
+            stateMachineArn: deleteExhibitionStepFunctionArn,
+            input: JSON.stringify(mutation)
+        }),
+    );
 
     return {
-        entityId: exhibition.id,
-        entity: exhibition,
-        action: "UPDATE",
-        actor: {
-            customerId: exhibition.customerId,
-            identityId: identityId
-        },
-        asset: {
-            images: undefinedIfEmpty(imagesToAdd),
-            delete: {
-                private: undefinedIfEmpty(privateImages),
-                public: undefinedIfEmpty(publicImages)
-            }
-        },
+        id: exhibition.id,
+        executionArn: assetProcessingExecution.executionArn
     }
-}
-
-const mapImages = (exhibitionId: string, identityId: string, refList: ImagesInput[]) => {
-    return refList.map((ref: ImagesInput) => {
-        return {
-            tmpPath: `public/tmp/image/${ref.key}`,
-            privatePath: `private/${identityId}/${ref.key}`,
-            publicPath: `asset/exhibition/${exhibitionId}/${ref.key}`,
-            name: ref.name
-        }
-    })
-}
-
-const getDifferent = (arr1: any[], arr2: any[]) => {
-    return arr1.filter(
-        option1 => !arr2.some(
-            option2 => option1.privatePath === option2.privatePath
-        ),
-    )
 }
 
 const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
@@ -176,12 +209,26 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
         id: exhibition.id,
         institutionId: exhibition.institutionId,
         referenceName: exhibition.referenceName,
-        qrCodeUrl: trimIdentity(exhibition.qrCode.privatePath, exhibition.identityId),
         includeInstitutionInfo: exhibition.includeInstitutionInfo,
-        langOptions: exhibition.langOptions,
+        qrCodeUrl: `qr-codes/${exhibition.id}.png`,
+        langOptions: exhibition.langOptions.map(opt => {
+            const audio = opt.audio ? {
+                key: `${exhibition.id}_${opt.lang}`,
+                markup: opt.audio.markup,
+                voice: opt.audio.voice,
+            } : undefined
+
+            return {
+                lang: opt.lang,
+                title: opt.title,
+                subtitle: opt.subtitle,
+                description: opt.description,
+                audio: audio
+            }
+        }),
         images: exhibition.images.map(img => {
             return {
-                key: trimIdentity(img.privatePath, exhibition.identityId),
+                id: img.id,
                 name: img.name
             }
         }),
