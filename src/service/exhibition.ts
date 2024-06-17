@@ -7,6 +7,7 @@ import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
 import {MutationResponseDto} from "../schema/common";
+import {ExposableMutation} from "../model/mutation";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
@@ -34,7 +35,7 @@ const createExhibition = async (customerId: string, identityId: string, createEx
 
     const {audios, images, qrCode} = prepareAssetsForCreation(exhibitionCreated);
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibitionCreated.id,
         entity: exhibitionCreated,
         action: "CREATE",
@@ -133,7 +134,7 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
 
     const assets = prepareAssetForUpdate(exhibition, exhibitionUpdated);
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibitionUpdated.id,
         entity: exhibitionUpdated,
         action: "UPDATE",
@@ -175,7 +176,7 @@ const deleteExhibition = async (exhibitionId: string, customerId: string): Promi
         })
         .go()
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibition.id,
         entity: exhibition,
         action: "DELETE",

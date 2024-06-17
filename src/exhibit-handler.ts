@@ -1,7 +1,7 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
 import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
-import {exhibitService, ExhibitionsFilter} from "./service/exhibit";
+import {ExhibitionsFilter, exhibitService} from "./service/exhibit";
 import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";

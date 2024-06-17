@@ -2,7 +2,7 @@ import DynamoDB from "aws-sdk/clients/dynamodb";
 import {SFNClient} from "@aws-sdk/client-sfn";
 import {PollyClient} from "@aws-sdk/client-polly";
 import {S3Client} from "@aws-sdk/client-s3";
-import { CloudFrontClient } from "@aws-sdk/client-cloudfront";
+import {CloudFrontClient} from "@aws-sdk/client-cloudfront";
 
 export const dynamoClient = new DynamoDB.DocumentClient();
 

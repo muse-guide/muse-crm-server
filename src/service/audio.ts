@@ -1,7 +1,7 @@
-import {PollyClient, SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, SynthesizeSpeechCommandOutput, VoiceId} from "@aws-sdk/client-polly";
+import {SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, SynthesizeSpeechCommandOutput, VoiceId} from "@aws-sdk/client-polly";
 import {LanguageCode} from "@aws-sdk/client-polly/dist-types/models/models_0";
 import {AudioGenerationException} from "../common/exceptions";
-import {AudioAsset, AudioInput, Voice} from "../model/asset";
+import {AudioInput, Voice} from "../model/asset";
 import {pollyClient} from "../common/aws-clients";
 
 export interface AudioGeneratorInput {

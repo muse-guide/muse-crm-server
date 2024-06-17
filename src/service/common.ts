@@ -60,7 +60,7 @@ export function prepareAssetsForCreation(resource: Exposable) {
     const images: ImageAsset[] = toImageAsset(resource);
     const qrCode: QrCodeAsset = toQrCodeAsset(resource);
 
-    return { audios, images, qrCode };
+    return {audios, images, qrCode};
 }
 
 export function prepareAssetForUpdate(oldResource: Exposable, newResource: Exposable) {
@@ -97,7 +97,7 @@ export function prepareAssetsForDeletion(resource: Exposable) {
     const privateAssetToDelete = privateAsset(audios, images, thumbnails, [qrCode]);
     const publicAssetToDelete = publicAsset(audios, images, thumbnails);
 
-    return { privateAssetToDelete, publicAssetToDelete };
+    return {privateAssetToDelete, publicAssetToDelete};
 }
 
 export const getDifferent = (arr1: EntityStructure[], arr2: EntityStructure[]) => {

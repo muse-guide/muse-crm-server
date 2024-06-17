@@ -7,6 +7,7 @@ import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {NotFoundException} from "../common/exceptions";
 import {MutationResponseDto} from "../schema/common";
 import {addLeadingZeros, convertStringToNumber, prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
+import {ExposableMutation} from "../model/mutation";
 
 const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN
 const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
@@ -36,7 +37,7 @@ const createExhibit = async (customerId: string, identityId: string, createExhib
 
     const {audios, images, qrCode} = prepareAssetsForCreation(exhibitCreated);
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibitCreated.id,
         entity: exhibitCreated,
         action: "CREATE",
@@ -141,7 +142,7 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
 
     const assets = prepareAssetForUpdate(exhibit, exhibitUpdated);
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibitUpdated.id,
         entity: exhibitUpdated,
         action: "UPDATE",
@@ -183,7 +184,7 @@ const deleteExhibit = async (exhibitId: string, customerId: string): Promise<Mut
         })
         .go()
 
-    const mutation = {
+    const mutation: ExposableMutation = {
         entityId: exhibit.id,
         entity: exhibit,
         action: "DELETE",
