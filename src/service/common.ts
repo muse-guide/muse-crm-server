@@ -131,3 +131,7 @@ export function addLeadingZeros(num: number): string {
     }
     return numStr;
 }
+
+export function getCurrentDate() {
+    return new Date().toISOString().split('T')[0];
+}

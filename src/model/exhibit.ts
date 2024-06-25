@@ -1,6 +1,6 @@
 import {Entity, EntityItem} from "electrodb";
 import {dynamoClient} from "../common/aws-clients";
-import {status, supportedLanguages, supportedVoices} from "./common";
+import {resourceStatus, supportedLanguages, supportedVoices} from "./common";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
 
@@ -93,8 +93,14 @@ export const ExhibitDao = new Entity(
                 },
             },
             status: {
-                type: status,
+                type: resourceStatus,
                 required: true,
+            },
+            createdAt: {
+                type: "number",
+                set: _ => {
+                    return Date.now()
+                }
             },
             version: {
                 type: "number",
