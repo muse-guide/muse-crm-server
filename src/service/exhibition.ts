@@ -8,6 +8,7 @@ import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
 import {MutationResponseDto} from "../schema/common";
 import {ExposableMutation} from "../model/mutation";
+import {customerService} from "./customer";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
@@ -28,6 +29,8 @@ const createExhibition = async (customerId: string, identityId: string, createEx
         images: createExhibition.images,
         status: "PROCESSING",
     }
+
+    await customerService.authorizeResourceCreation(customerId, exhibition)
 
     const {data: exhibitionCreated} = await ExhibitionDao
         .create(exhibition)
@@ -85,7 +88,7 @@ export interface ExhibitionsFilter {
     referenceNameLike?: string
 }
 
-const getExhibitionsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults> => {
+const searchExhibitionsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults> => {
     const {pageSize, nextPageKey} = pagination
     const response = await ExhibitionDao
         .query
@@ -113,9 +116,28 @@ const getExhibitionsForCustomer = async (customerId: string, pagination: Paginat
     }
 }
 
+const getAllExhibitionsForCustomer = async (customerId: string): Promise<PaginatedResults> => {
+    const response = await ExhibitionDao
+        .query
+        .byCustomer({
+            customerId: customerId
+        })
+        .go({
+            pages: "all"
+        })
+
+    return {
+        items: response.data.map(mapToExhibitionDto),
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
+}
+
 const updateExhibition = async (exhibitionId: string, customerId: string, updateExhibition: UpdateExhibitionDto): Promise<MutationResponseDto> => {
     const exhibition = await getExhibition(exhibitionId, customerId)
     // TODO add audio input validation here
+
+    await customerService.authorizeResourceUpdate(customerId, {...exhibition, langOptions: updateExhibition.langOptions})
 
     const {data: exhibitionUpdated} = await ExhibitionDao
         .patch({
@@ -127,6 +149,7 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
             langOptions: updateExhibition.langOptions,
             images: updateExhibition.images,
             status: "PROCESSING",
+            version: Date.now(),
         })
         .go({
             response: "all_new"
@@ -239,7 +262,8 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
 
 export const exhibitionService = {
     getExhibitionForCustomer: getExhibitionForCustomer,
-    getExhibitionsForCustomer: getExhibitionsForCustomer,
+    searchExhibitionsForCustomer: searchExhibitionsForCustomer,
+    getAllExhibitionsForCustomer: getAllExhibitionsForCustomer,
     createExhibition: createExhibition,
     deleteExhibition: deleteExhibition,
     updateExhibition: updateExhibition,

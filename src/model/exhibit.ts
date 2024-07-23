@@ -124,6 +124,7 @@ export const ExhibitDao = new Entity(
             },
             byCustomer: {
                 index: "gsi1pk-gsi1sk-index",
+                collection: "customerResources",
                 pk: {
                     field: "gsi1pk",
                     composite: ["customerId"],

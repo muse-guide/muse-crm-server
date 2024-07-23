@@ -1,5 +1,5 @@
 import {Entity, EntityItem} from "electrodb";
-import {identityStatus, subscriptionType, subscriptionStatus} from "./common";
+import {identityStatus, subscriptionPlanType, subscriptionStatus} from "./common";
 import {dynamoClient} from "../common/aws-clients";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
@@ -12,7 +12,7 @@ export const CustomerDao = new Entity(
             service: "crm",
         },
         attributes: {
-            id: {
+            customerId: {
                 type: "string",
                 required: true,
             },
@@ -38,15 +38,29 @@ export const CustomerDao = new Entity(
             },
         },
         indexes: {
-            byId: {
+            byCustomerId: {
                 pk: {
                     field: "pk",
-                    composite: ["id"],
+                    composite: ["customerId"],
                     casing: "none",
                 },
                 sk: {
                     field: "sk",
-                    composite: ["id"],
+                    composite: ["customerId"],
+                    casing: "none",
+                },
+            },
+            customerWithSubscriptions: {
+                index: "gsi1pk-gsi1sk-index",
+                collection: "customerWithSubscriptions",
+                pk: {
+                    field: "gsi1pk",
+                    composite: ["customerId"],
+                    casing: "none",
+                },
+                sk: {
+                    field: "gsi1sk",
+                    composite: ["customerId"],
                     casing: "none",
                 },
             },
@@ -63,7 +77,7 @@ export const SubscriptionDao = new Entity(
             service: "crm",
         },
         attributes: {
-            id: {
+            subscriptionId: {
                 type: "string",
                 required: true,
             },
@@ -72,7 +86,7 @@ export const SubscriptionDao = new Entity(
                 required: true,
             },
             plan: {
-                type: subscriptionType,
+                type: subscriptionPlanType,
                 required: true,
             },
             status: {
@@ -83,7 +97,7 @@ export const SubscriptionDao = new Entity(
                 type: "string",
                 required: true,
             },
-            expiresAt: {
+            expiredAt: {
                 type: "string",
                 required: false,
             },
@@ -101,20 +115,21 @@ export const SubscriptionDao = new Entity(
             },
         },
         indexes: {
-            byId: {
+            bySubscriptionId: {
                 pk: {
                     field: "pk",
-                    composite: ["id"],
+                    composite: ["subscriptionId"],
                     casing: "none",
                 },
                 sk: {
                     field: "sk",
-                    composite: ["id"],
+                    composite: ["subscriptionId"],
                     casing: "none",
                 },
             },
-            byCustomer: {
+            byCustomerId: {
                 index: "gsi1pk-gsi1sk-index",
+                collection: "customerWithSubscriptions",
                 pk: {
                     field: "gsi1pk",
                     composite: ["customerId"],
@@ -122,7 +137,7 @@ export const SubscriptionDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["id"],
+                    composite: ["subscriptionId"],
                     casing: "none",
                 },
             },
@@ -133,3 +148,20 @@ export const SubscriptionDao = new Entity(
 
 export type Customer = EntityItem<typeof CustomerDao>
 export type Subscription = EntityItem<typeof SubscriptionDao>
+
+export type CustomerWithSubscription = {
+    customer: Customer,
+    subscription: Subscription
+}
+
+export type CustomerWithSubscriptions = {
+    customer: Customer,
+    subscriptions: Subscription[]
+}
+
+export type CustomerResources = {
+    customerId: string,
+    exhibitionsCount: number,
+    exhibitsCount: number,
+    maxLanguages: number,
+}

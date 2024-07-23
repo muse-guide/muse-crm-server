@@ -79,7 +79,7 @@ const exhibitGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
             nextPageKey: event.queryStringParameters?.["next-page-key"]
         }
 
-        const exhibits = await exhibitService.getExhibitsForCustomer(customerId, pagination, filters)
+        const exhibits = await exhibitService.searchExhibitsForCustomer(customerId, pagination, filters)
         return responseFormatter(200, exhibits)
     } catch (err) {
         return restHandleError(err);

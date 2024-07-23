@@ -8,8 +8,12 @@ const RESOURCE_NUMBER_LENGTH = 6
 
 export type Exposable = Exhibit | Exhibition;
 
-function isExhibit(resource: Exposable): resource is Exhibit {
+export function isExhibit(resource: Exposable): resource is Exhibit {
     return (resource as Exhibit).exhibitionId !== undefined;
+}
+
+export function isExhibition(resource: Exposable): resource is Exhibition {
+    return (resource as Exhibition).institutionId !== undefined;
 }
 
 const toResourceType = (resource: Exposable) => isExhibit(resource) ? "exhibits" : "exhibitions";
