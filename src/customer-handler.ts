@@ -6,8 +6,7 @@ import {logger} from "./common/logger";
 import {uuidId} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import cors from "@middy/http-cors";
-import {updateSubscriptionSchema} from "./schema/customer";
-import {configurationService} from "./service/configuration";
+import {updateCustomerDetailsSchema, updateSubscriptionSchema} from "./schema/customer";
 
 const customerCreate = async (event: PostConfirmationTriggerEvent) => {
     const {userAttributes} = event.request
@@ -42,6 +41,26 @@ const customerGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 export const customerGetHandler = middy(customerGet);
 customerGetHandler
     .use(cors())
+
+
+const customerDetailsUpdate = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        const request = updateCustomerDetailsSchema.parse(event.body)
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+
+        logger.info(`Updating details of customer with id: ${customerId}`)
+        const customer = await customerService.updateCustomerDetails(customerId, request)
+        return responseFormatter(200, customer)
+    } catch (err) {
+        return restHandleError(err);
+    }
+}
+
+export const customerDetailsUpdateHandler = middy(customerDetailsUpdate);
+customerDetailsUpdateHandler
+    .use(httpJsonBodyParser({
+        disableContentTypeError: true
+    }))
 
 
 const subscriptionUpdate = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {

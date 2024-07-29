@@ -1,19 +1,11 @@
-import {
-    Customer,
-    CustomerDao,
-    CustomerResources, CustomerWithSubscription,
-    CustomerWithSubscriptions,
-    Subscription,
-    SubscriptionDao
-} from "../model/customer";
-import {ResourceType, SubscriptionPlanType} from "../model/common";
+import {CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
+import {SubscriptionPlanType} from "../model/common";
 import {Exposable, getCurrentDate, isExhibit, isExhibition} from "./common";
-import {CustomerDto} from "../schema/customer";
+import {CustomerDto, UpdateCustomerDetailsDto} from "../schema/customer";
 import {Service} from "electrodb";
 import {CustomerException} from "../common/exceptions";
 import {ExhibitDao} from "../model/exhibit";
 import {nanoid} from "nanoid";
-import {configuration} from "../model/configuration";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
 
@@ -42,35 +34,33 @@ const createCustomer = async (customerId: string, email: string): Promise<Custom
     const customer = customerResponseItem.data
     const subscription = subscriptionResponseItem.data
 
-    return {
-        customerId: customer.customerId,
-        email: customer.email,
-        status: customer.status,
-        subscription: {
-            subscriptionId: subscription.subscriptionId,
-            plan: subscription.plan,
-            status: subscription.status,
-            startedAt: subscription.startedAt,
-            expiredAt: subscription.expiredAt,
-        }
-    }
+    return mapToCustomerDto({
+        customer: customer,
+        subscription: subscription
+    })
 }
 
 const getCustomerDetails = async (customerId: string): Promise<CustomerDto> => {
-    const {customer, subscription} = await getCustomerWithSubscription(customerId)
+    const customer = await getCustomerWithActiveSubscription(customerId)
+    return mapToCustomerDto(customer)
+}
 
-    return {
-        customerId: customer.customerId,
-        email: customer.email,
-        status: customer.status,
-        subscription: {
-            subscriptionId: subscription.subscriptionId,
-            plan: subscription.plan,
-            status: subscription.status,
-            startedAt: subscription.startedAt,
-            expiredAt: subscription.expiredAt,
-        }
-    }
+const updateCustomerDetails = async (customerId: string, updateCustomerDetails: UpdateCustomerDetailsDto): Promise<CustomerDto> => {
+    const customerResponseItem = await CustomerDao
+        .patch({
+            customerId: customerId,
+        })
+        .set({
+            fullName: updateCustomerDetails.fullName,
+            taxNumber: updateCustomerDetails.taxNumber,
+            telephoneNumber: updateCustomerDetails.telephoneNumber,
+            address: updateCustomerDetails.address,
+        })
+        .go({
+            response: "all_new"
+        })
+
+    return getCustomerDetails(customerId)
 }
 
 const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanType): Promise<CustomerDto> => {
@@ -109,19 +99,28 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
         createSubscriptionPromise
     ])
 
-    const createdSubscription = createSubscriptionResponseItem.data
+    return mapToCustomerDto({
+        customer: customer,
+        subscription: createSubscriptionResponseItem.data
+    })
+}
 
+const mapToCustomerDto = (customer: CustomerWithSubscription): CustomerDto => {
     return {
-        customerId: customer.customerId,
-        email: customer.email,
-        status: customer.status,
+        customerId: customer.customer.customerId,
+        email: customer.customer.email,
+        status: customer.customer.status,
+        fullName: customer.customer.fullName,
+        taxNumber: customer.customer.taxNumber,
+        telephoneNumber: customer.customer.telephoneNumber,
         subscription: {
-            subscriptionId: createdSubscription.subscriptionId,
-            plan: createdSubscription.plan,
-            status: createdSubscription.status,
-            startedAt: createdSubscription.startedAt,
-            expiredAt: createdSubscription.expiredAt,
-        }
+            subscriptionId: customer.subscription.subscriptionId,
+            plan: customer.subscription.plan,
+            status: customer.subscription.status,
+            startedAt: customer.subscription.startedAt,
+            expiredAt: customer.subscription.expiredAt,
+        },
+        address: customer.customer.address
     }
 }
 
@@ -204,7 +203,7 @@ const getCustomerWithSubscriptions = async (customerId: string): Promise<Custome
     }
 }
 
-const getCustomerWithSubscription = async (customerId: string): Promise<CustomerWithSubscription> => {
+const getCustomerWithActiveSubscription = async (customerId: string): Promise<CustomerWithSubscription> => {
     const {customer, subscriptions} = await getCustomerWithSubscriptions(customerId)
     const activeSubscription = getActiveSubscriptionFor(customerId, subscriptions)
 
@@ -229,7 +228,7 @@ const getActiveSubscriptionFor = (customerId: string, subscriptions: Subscriptio
 }
 
 const authorizeResourceCreation = async (customerId: string, resource: Exposable): Promise<void> => {
-    const customerPromise = getCustomerWithSubscription(customerId)
+    const customerPromise = getCustomerWithActiveSubscription(customerId)
     const customerResourcesPromise = getCustomerResources(customerId)
     const [{customer, subscription}, customerResources] = await Promise.all([
         customerPromise,
@@ -255,7 +254,7 @@ const authorizeResourceCreation = async (customerId: string, resource: Exposable
 }
 
 const authorizeResourceUpdate = async (customerId: string, resource: Exposable): Promise<void> => {
-    const {customer, subscription} = await getCustomerWithSubscription(customerId)
+    const {customer, subscription} = await getCustomerWithActiveSubscription(customerId)
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
 
     if (customer.status !== "ACTIVE") {
@@ -270,6 +269,7 @@ const authorizeResourceUpdate = async (customerId: string, resource: Exposable):
 export const customerService = {
     createCustomer: createCustomer,
     getCustomerDetails: getCustomerDetails,
+    updateCustomerDetails: updateCustomerDetails,
     changeSubscription: changeSubscription,
     authorizeResourceCreation: authorizeResourceCreation,
     authorizeResourceUpdate: authorizeResourceUpdate,

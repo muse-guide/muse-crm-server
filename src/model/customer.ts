@@ -24,6 +24,48 @@ export const CustomerDao = new Entity(
                 type: identityStatus,
                 required: true,
             },
+            fullName: {
+                type: "string",
+                required: false,
+            },
+            telephoneNumber: {
+                type: "string",
+                required: false,
+            },
+            taxNumber: {
+                type: "string",
+                required: false,
+            },
+            address: {
+                type: "map",
+                required: false,
+                properties: {
+                    street: {
+                        type: "string",
+                        required: false,
+                    },
+                    houseNumber: {
+                        type: "string",
+                        required: false,
+                    },
+                    houseNumberExtension: {
+                        type: "string",
+                        required: false,
+                    },
+                    city: {
+                        type: "string",
+                        required: false,
+                    },
+                    zipCode: {
+                        type: "string",
+                        required: false,
+                    },
+                    country: {
+                        type: "string",
+                        required: false,
+                    },
+                },
+            },
             createdAt: {
                 type: "number",
                 set: _ => {
