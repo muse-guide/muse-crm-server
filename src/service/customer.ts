@@ -1,4 +1,4 @@
-import {CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
+import {Customer, CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
 import {Exposable, getCurrentDate, isExhibit, isExhibition} from "./common";
 import {CustomerDto, UpdateCustomerDetailsDto} from "../schema/customer";
@@ -27,7 +27,6 @@ const createCustomer = async (customerId: string, email: string): Promise<Custom
             status: 'ACTIVE',
             startedAt: getCurrentDate(),
             expiredAt: undefined,
-            version: Date.now(),
         })
         .go()
 
@@ -90,7 +89,6 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
             status: 'ACTIVE',
             startedAt: getCurrentDate(),
             expiredAt: undefined,
-            version: Date.now(),
         })
         .go()
 
@@ -267,10 +265,15 @@ const authorizeResourceUpdate = async (customerId: string, resource: Exposable):
 }
 
 export const customerService = {
+    // Public API methods
     createCustomer: createCustomer,
     getCustomerDetails: getCustomerDetails,
     updateCustomerDetails: updateCustomerDetails,
     changeSubscription: changeSubscription,
+
+    // Internal methods
     authorizeResourceCreation: authorizeResourceCreation,
     authorizeResourceUpdate: authorizeResourceUpdate,
+    getCustomerWithActiveSubscription: getCustomerWithActiveSubscription,
+    getCustomerWithSubscriptions: getCustomerWithSubscriptions,
 };

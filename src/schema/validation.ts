@@ -2,6 +2,7 @@ import {z} from "zod";
 import {BadRequestException} from "../common/exceptions";
 
 export const nanoId = z.string().length(8);
+export const nanoId_12 = z.string().length(12);
 export const uuidId = z.string().uuid();
 export const required = z.string();
 

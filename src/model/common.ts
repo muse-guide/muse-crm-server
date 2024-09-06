@@ -14,6 +14,7 @@ export type ResourceType = "exhibition" | "exhibit"
 
 export const identityStatus = ["PROCESSING", "ACTIVE", "PAYMENT_MISSING", "DEACTIVATED", "ERROR"] as const
 export const subscriptionStatus = ["PROCESSING", "ACTIVE", "DEACTIVATED", "ERROR"] as const
+export const invoiceStatus = ["ISSUED", "PAID", "UNPAID"] as const
 
 export const subscriptionPlanType = ["FREE", "BASIC", "PREMIUM"] as const
 export type SubscriptionPlanType = "FREE" | "BASIC" | "PREMIUM"

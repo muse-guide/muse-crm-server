@@ -139,3 +139,12 @@ export function addLeadingZeros(num: number): string {
 export function getCurrentDate() {
     return new Date().toISOString().split('T')[0];
 }
+
+export function getDateString(date: Date) {
+    return date.toISOString().split('T')[0];
+}
+
+export function roundToPrecision(num: number, precision?: number) {
+    const precisionToUse = precision ?? 2;
+    return Math.round(num * Math.pow(10, precisionToUse)) / Math.pow(10, precisionToUse);
+}

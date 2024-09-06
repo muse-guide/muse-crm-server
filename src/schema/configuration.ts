@@ -6,6 +6,28 @@ export interface SubscriptionPlanDto {
     maxLanguages: number,
 }
 
+export interface InvoicePeriodDto {
+    periodStart: string,
+    periodEnd: string,
+}
+
+export interface companyDetailsDto {
+    name: string,
+    taxNumber: string,
+    bankAccount: string,
+    address: {
+        street: string,
+        houseNumber: string,
+        houseNumberExtension: string
+        city: string,
+        zipCode: string,
+        country: string,
+    }
+}
+
 export interface ApplicationConfigurationDto {
-    subscriptionPlans: SubscriptionPlanDto[]
+    subscriptionPlans: SubscriptionPlanDto[],
+    invoicePeriods: InvoicePeriodDto[],
+    currentInvoicePeriod: InvoicePeriodDto,
+    companyDetails: companyDetailsDto,
 }
