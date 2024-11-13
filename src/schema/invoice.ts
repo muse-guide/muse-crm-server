@@ -27,3 +27,5 @@ export interface InvoiceItemDto {
     activeTo: string,
     amount: string,
 }
+
+export const invoicePaymentStatus = ["ALL", "PAID", "UNPAID"] as const

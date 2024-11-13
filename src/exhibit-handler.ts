@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, required, uuidId, validateUniqueEntries} from "./schema/validation";
+import {nanoId, required, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
 import {ExhibitionsFilter, exhibitService} from "./service/exhibit";
 import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
@@ -20,8 +20,12 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const identityId = required.parse(event.headers?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
-        if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
-        if (request.images) validateUniqueEntries(request.images, "id", "Image refs not unique.")
+        validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
+        validateUniqueEntries(request.images, "id", "Image refs not unique.")
+        request.langOptions.forEach(lang => {
+            validateAudioCharacterCount(lang.audio?.markup)
+            validateArticleMarkup(lang.article)
+        })
 
         const response = await exhibitService.createExhibit(customerId, identityId, request)
         return responseFormatter(200, response)
@@ -127,8 +131,12 @@ export const exhibitUpdate = async (event: APIGatewayProxyEvent): Promise<APIGat
         const exhibitId = nanoId.parse(event.pathParameters?.["id"])
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
-        if (request.langOptions) validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
-        if (request.images) validateUniqueEntries(request.images, "id", "Image refs not unique.")
+        validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
+        validateUniqueEntries(request.images, "id", "Image refs not unique.")
+        request.langOptions.forEach(lang => {
+            validateAudioCharacterCount(lang.audio?.markup)
+            validateArticleMarkup(lang.article)
+        })
 
         const response = await exhibitService.updateExhibit(exhibitId, customerId, request)
         return responseFormatter(200, response)

@@ -1,6 +1,9 @@
 import {NotFoundException} from "../common/exceptions";
 import {ExhibitionDao} from "../model/exhibition";
 import {ExhibitionPreviewDto} from "../schema/exhibition-preview";
+import {articleService} from "./article";
+
+const appDomain = process.env.APP_DOMAIN
 
 const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise<ExhibitionPreviewDto> => {
     const {data: exhibition} = await ExhibitionDao
@@ -16,8 +19,9 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibition.langOptions[0]
 
-    const images = exhibition.images.map(img => `asset/exhibitions/${exhibition.id}/images/${img.id}`)
-    const audio = langOption.audio ? `asset/exhibitions/${exhibition.id}/audio/${langOption.lang}` : undefined
+    const images = exhibition.images.map(img => `${appDomain}/asset/exhibitions/${exhibition.id}/images/${img.id}`)
+    const audio = langOption.audio ? `${appDomain}/asset/exhibitions/${exhibition.id}/audio/${langOption.lang}` : undefined
+    const article = articleService.preparePublicArticleImages(exhibition.id, "exhibitions", langOption.article)
 
     return {
         id: exhibition.id,
@@ -26,7 +30,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
         langOptions: exhibition.langOptions.map((opt: { lang: string; }) => opt.lang),
         title: langOption.title,
         subtitle: langOption.subtitle,
-        description: langOption.description,
+        article: article,
         imageUrls: images,
         audio: audio
     }

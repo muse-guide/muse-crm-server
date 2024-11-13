@@ -5,10 +5,10 @@ import {logger} from "./common/logger";
 import {InvoiceFilters, invoiceService} from "./service/invoice";
 import {configurationService} from "./service/configuration";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
-import {nanoId, nanoId_12, required, uuidId} from "./schema/validation";
+import {nanoId_12, uuidId} from "./schema/validation";
 import cors from "@middy/http-cors";
 import {z} from "zod";
-import {configuration} from "./model/configuration";
+import {invoicePaymentStatus} from "./schema/invoice";
 
 
 const issueInvoices = async (event: any) => {
@@ -36,11 +36,15 @@ const invoicesGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
         const filters: InvoiceFilters = {
-            periodFrom: required.parse(event.queryStringParameters?.["from"]),
-            periodTo: required.parse(event.queryStringParameters?.["to"])
+            paymentStatus: z.enum(invoicePaymentStatus).parse(event.queryStringParameters?.["paymentStatus"]),
         }
 
-        const paginatedResults = await invoiceService.getInvoicesForCustomer(customerId, filters)
+        const pagination = {
+            pageSize: z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"]) ?? 10,
+            nextPageKey: event.queryStringParameters?.["next-page-key"]
+        }
+
+        const paginatedResults = await invoiceService.getInvoicesForCustomer(customerId, pagination, filters)
         return responseFormatter(200, paginatedResults)
     } catch (err) {
         return restHandleError(err);

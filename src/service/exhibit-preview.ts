@@ -3,6 +3,9 @@ import {Exhibit, ExhibitDao} from "../model/exhibit";
 import {ExhibitPreviewDto} from "../schema/exhibit-preview";
 import {addLeadingZeros, convertStringToNumber} from "./common";
 import {PaginatedResults, Pagination} from "../model/common";
+import {articleService} from "./article";
+
+const appDomain = process.env.APP_DOMAIN
 
 const getExhibitPreview = async (exhibitId: string, lang: string): Promise<ExhibitPreviewDto> => {
     const {data: exhibit} = await ExhibitDao
@@ -49,8 +52,9 @@ const mapToExhibitPreviewDto = (lang: string, exhibit: Exhibit | null): ExhibitP
     const requestedLangOption = exhibit.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibit.langOptions[0]
 
-    const images = exhibit.images.map(img => `asset/exhibits/${exhibit.id}/images/${img.id}`)
-    const audio = langOption.audio ? `asset/exhibits/${exhibit.id}/audio/${langOption.lang}` : undefined
+    const images = exhibit.images.map(img => `${appDomain}/asset/exhibits/${exhibit.id}/images/${img.id}`)
+    const audio = langOption.audio ? `${appDomain}/asset/exhibits/${exhibit.id}/audio/${langOption.lang}` : undefined
+    const article = articleService.preparePublicArticleImages(exhibit.id, "exhibits", langOption.article)
 
     return {
         id: exhibit.id,
@@ -60,7 +64,7 @@ const mapToExhibitPreviewDto = (lang: string, exhibit: Exhibit | null): ExhibitP
         langOptions: exhibit.langOptions.map((opt: { lang: string; }) => opt.lang),
         title: langOption.title,
         subtitle: langOption.subtitle,
-        description: langOption.description,
+        article: article,
         imageUrls: images,
         audio: audio
     }

@@ -5,7 +5,7 @@ export interface ExhibitionPreviewDto {
     langOptions: string[];
     title: string;
     subtitle: string;
-    description?: string;
+    article?: string;
     imageUrls: string[];
     audio?: string;
 }

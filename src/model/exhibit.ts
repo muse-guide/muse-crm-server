@@ -54,7 +54,7 @@ export const ExhibitDao = new Entity(
                             type: "string",
                             required: true,
                         },
-                        description: {
+                        article: {
                             type: "string",
                             required: false,
                         },

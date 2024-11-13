@@ -12,7 +12,7 @@ const getSubscriptionPlan = (name: SubscriptionPlanType): SubscriptionPlan => {
     return plan;
 }
 
-const getCurrentInvoicePeriod = (): InvoicePeriod => {
+const getLastInvoicedPeriod = (): InvoicePeriod => {
     const now = getDateString(new Date())
 
     let currentPeriod: InvoicePeriod | undefined
@@ -30,6 +30,7 @@ const getCurrentInvoicePeriod = (): InvoicePeriod => {
 }
 
 const getApplicationConfiguration = (): ApplicationConfigurationDto => {
+    const lastInvoicedPeriod = getLastInvoicedPeriod()
     return {
         subscriptionPlans: configuration.subscriptionPlans.map(plan => {
             return {
@@ -40,15 +41,9 @@ const getApplicationConfiguration = (): ApplicationConfigurationDto => {
                 maxLanguages: plan.maxLanguages,
             }
         }),
-        invoicePeriods: configuration.invoicePeriods.map(period => {
-            return {
-                periodStart: period.periodStart,
-                periodEnd: period.periodEnd,
-            }
-        }),
-        currentInvoicePeriod: {
-            periodStart: getCurrentInvoicePeriod().periodStart,
-            periodEnd: getCurrentInvoicePeriod().periodEnd,
+        lastInvoicedPeriod: {
+            periodStart: lastInvoicedPeriod.periodStart,
+            periodEnd: lastInvoicedPeriod.periodEnd,
         },
         companyDetails: configuration.companyDetails
     }
@@ -56,6 +51,6 @@ const getApplicationConfiguration = (): ApplicationConfigurationDto => {
 
 export const configurationService = {
     getApplicationConfiguration: getApplicationConfiguration,
-    getCurrentInvoicePeriod: getCurrentInvoicePeriod,
+    getCurrentInvoicePeriod: getLastInvoicedPeriod,
     getSubscriptionPlan: getSubscriptionPlan,
 };

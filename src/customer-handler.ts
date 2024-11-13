@@ -28,6 +28,7 @@ customerCreateHandler
 
 const customerGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
+        logger.info(`Getting customer details`, event.requestContext.authorizer?.claims.sub)
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
         logger.info(`Getting customer with id: ${customerId}`)

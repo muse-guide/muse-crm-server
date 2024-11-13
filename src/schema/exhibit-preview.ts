@@ -6,7 +6,7 @@ export interface ExhibitPreviewDto {
     langOptions: string[];
     title: string;
     subtitle: string;
-    description?: string;
+    article?: string;
     imageUrls: string[];
     audio?: string;
 }

@@ -27,7 +27,6 @@ export interface companyDetailsDto {
 
 export interface ApplicationConfigurationDto {
     subscriptionPlans: SubscriptionPlanDto[],
-    invoicePeriods: InvoicePeriodDto[],
-    currentInvoicePeriod: InvoicePeriodDto,
+    lastInvoicedPeriod: InvoicePeriodDto,
     companyDetails: companyDetailsDto,
 }

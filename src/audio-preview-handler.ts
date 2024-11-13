@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {required} from "./schema/validation";
+import {required, validateAudioCharacterCount} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import {audioPreviewRequest, AudioPreviewRequestDto, AudioPreviewResponseDto} from "./schema/audio-preview";
@@ -14,6 +14,7 @@ const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 const generateAudioPreview = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const request: AudioPreviewRequestDto = audioPreviewRequest.parse(event.body)
+        validateAudioCharacterCount(request.markup)
 
         const mp3 = await audioService.generate(request)
         const key = nanoid_8()

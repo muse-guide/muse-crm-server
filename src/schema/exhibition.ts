@@ -1,5 +1,6 @@
 import {z} from "zod";
 import {supportedLanguages, supportedVoices} from "../model/common";
+import {AudioDto, ImageDto} from "./common";
 
 export const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(200),
@@ -9,11 +10,11 @@ export const createExhibitionSchema = z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(120),
         subtitle: z.string().min(1).max(200),
-        description: z.string().min(1).max(2000).optional(),
+        article: z.string().min(1).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(2000),
+            markup: z.string().min(1),
             voice: z.enum(supportedVoices),
-        }).optional(),
+        }).optional()
     })).nonempty(),
     images: z.array(z.object({
         id: z.string().min(1),
@@ -30,15 +31,15 @@ export const updateExhibitionSchema = z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(120),
         subtitle: z.string().min(1).max(200),
-        description: z.string().min(1).max(2000).optional(),
+        article: z.string().min(1).optional(),
         audio: z.object({
-            markup: z.string().min(1).max(2000),
+            markup: z.string().min(1),
             voice: z.enum(supportedVoices),
-        }).optional(),
+        }).optional()
     })),
     images: z.array(z.object({
         id: z.string().min(1),
-        name: z.string().min(1),
+        name: z.string().min(1)
     }))
 })
 
@@ -54,16 +55,9 @@ export interface ExhibitionDto {
         lang: string,
         title: string,
         subtitle: string,
-        description?: string,
-        audio?: {
-            key: string,
-            markup: string,
-            voice: string,
-        }
+        article?: string,
+        audio?: AudioDto
     }[],
-    images: {
-        id: string,
-        name: string
-    }[],
+    images: ImageDto[],
     status: string
 }

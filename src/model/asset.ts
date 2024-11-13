@@ -13,7 +13,6 @@ export interface QrCodeAsset extends PrivateAsset {
 export interface ImageAsset extends PrivateAsset, PublicAsset {
     thumbnails: ThumbnailAsset,
     tmpPath: string,
-    name: string,
 }
 
 export interface ThumbnailAsset extends PrivateAsset, PublicAsset {
@@ -33,4 +32,9 @@ export interface AudioAsset extends AudioInput, PrivateAsset, PublicAsset {
 export interface DeleteAsset {
     private?: string[],
     public?: string[],
+}
+
+export interface Image {
+    id: string;
+    name: string;
 }

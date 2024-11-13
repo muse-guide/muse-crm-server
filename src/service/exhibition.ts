@@ -9,6 +9,8 @@ import {prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletio
 import {MutationResponseDto} from "../schema/common";
 import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
+import {articleService} from "./article";
+import {Exhibit} from "../model/exhibit";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
@@ -16,7 +18,6 @@ const updateExhibitionStepFunctionArn = process.env.UPDATE_EXHIBITION_STEP_FUNCT
 
 const createExhibition = async (customerId: string, identityId: string, createExhibition: CreateExhibitionDto): Promise<MutationResponseDto> => {
     const exhibitionId = nanoid_8()
-    // TODO add audio input validation here
 
     const exhibition: Exhibition = {
         id: exhibitionId,
@@ -25,7 +26,10 @@ const createExhibition = async (customerId: string, identityId: string, createEx
         institutionId: createExhibition.institutionId,
         includeInstitutionInfo: createExhibition.includeInstitutionInfo,
         referenceName: createExhibition.referenceName,
-        langOptions: createExhibition.langOptions,
+        langOptions: createExhibition.langOptions.map(lang => ({
+            ...lang,
+            article: articleService.processArticleImages(lang.article)
+        })),
         images: createExhibition.images,
         status: "PROCESSING",
     }
@@ -81,7 +85,8 @@ const getExhibition = async (exhibitionId: string, customerId: string): Promise<
 
 const getExhibitionForCustomer = async (exhibitionId: string, customerId: string): Promise<ExhibitionDto> => {
     const exhibition = await getExhibition(exhibitionId, customerId)
-    return mapToExhibitionDto(exhibition)
+    const exhibitionWithImagesPresigned = await articleService.prepareArticleImages(exhibition) as Exhibition
+    return mapToExhibitionDto(exhibitionWithImagesPresigned)
 }
 
 export interface ExhibitionsFilter {
@@ -146,7 +151,10 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
             institutionId: exhibition.institutionId,
             referenceName: updateExhibition.referenceName,
             includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
-            langOptions: updateExhibition.langOptions,
+            langOptions: updateExhibition.langOptions.map(lang => ({
+                ...lang,
+                article: articleService.processArticleImages(lang.article)
+            })),
             images: updateExhibition.images,
             status: "PROCESSING",
             version: Date.now(),
@@ -246,7 +254,7 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
                 lang: opt.lang,
                 title: opt.title,
                 subtitle: opt.subtitle,
-                description: opt.description,
+                article: opt.article,
                 audio: audio
             }
         }),

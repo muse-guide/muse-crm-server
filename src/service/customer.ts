@@ -8,9 +8,23 @@ import {ExhibitDao} from "../model/exhibit";
 import {nanoid} from "nanoid";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
+import {logger} from "../common/logger";
 
 // Creates new Customer with Basic subscription
 const createCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
+    try {
+        return await getCustomerDetails(customerId)
+    } catch (e) {
+        if (e instanceof CustomerException) {
+            logger.info(`Customer ${customerId} not found. Creating new customer.`)
+            return createNewCustomer(customerId, email)
+        }
+        throw e
+    }
+}
+
+const createNewCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
+
     const customerResponseItem = await CustomerDao
         .create({
             customerId: customerId,

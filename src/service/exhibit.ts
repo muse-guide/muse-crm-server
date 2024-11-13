@@ -6,15 +6,10 @@ import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {NotFoundException} from "../common/exceptions";
 import {MutationResponseDto} from "../schema/common";
-import {
-    addLeadingZeros,
-    convertStringToNumber,
-    prepareAssetForUpdate,
-    prepareAssetsForCreation,
-    prepareAssetsForDeletion
-} from "./common";
+import {addLeadingZeros, convertStringToNumber, prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
 import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
+import {articleService} from "./article";
 
 const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN
 const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
@@ -24,7 +19,6 @@ const ZEROS = "000000"
 
 const createExhibit = async (customerId: string, identityId: string, createExhibit: CreateExhibitDto): Promise<MutationResponseDto> => {
     const exhibitId = nanoid_8()
-    // TODO add audio input validation here
 
     const exhibit: Exhibit = {
         id: exhibitId,
@@ -33,7 +27,10 @@ const createExhibit = async (customerId: string, identityId: string, createExhib
         exhibitionId: createExhibit.exhibitionId,
         referenceName: createExhibit.referenceName,
         number: addLeadingZeros(createExhibit.number),
-        langOptions: createExhibit.langOptions,
+        langOptions: createExhibit.langOptions.map(lang => ({
+            ...lang,
+            article: articleService.processArticleImages(lang.article)
+        })),
         images: createExhibit.images,
         status: "PROCESSING",
     }
@@ -89,7 +86,8 @@ const getExhibit = async (exhibitId: string, customerId: string): Promise<Exhibi
 
 const getExhibitForCustomer = async (exhibitId: string, customerId: string): Promise<ExhibitDto> => {
     const exhibit = await getExhibit(exhibitId, customerId)
-    return mapToExhibitDto(exhibit)
+    const exhibitWithImagesPresigned = await articleService.prepareArticleImages(exhibit) as Exhibit
+    return mapToExhibitDto(exhibitWithImagesPresigned)
 }
 
 export interface ExhibitionsFilter {
@@ -160,7 +158,10 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
             exhibitionId: exhibit.exhibitionId,
             referenceName: updateExhibit.referenceName,
             number: addLeadingZeros(updateExhibit.number),
-            langOptions: updateExhibit.langOptions,
+            langOptions: updateExhibit.langOptions.map(lang => ({
+                ...lang,
+                article: articleService.processArticleImages(lang.article)
+            })),
             images: updateExhibit.images,
             status: "PROCESSING",
             version: Date.now(),
@@ -260,7 +261,7 @@ const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
                 lang: opt.lang,
                 title: opt.title,
                 subtitle: opt.subtitle,
-                description: opt.description,
+                article: opt.article,
                 audio: audio
             }
         }),

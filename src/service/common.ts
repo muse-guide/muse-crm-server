@@ -3,10 +3,12 @@ import {AudioAsset, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset, Thumbnai
 import {Exhibition} from "../model/exhibition";
 import {EntityStructure} from "../model/common";
 import crypto from 'crypto';
+import {articleService} from "./article";
 
 const RESOURCE_NUMBER_LENGTH = 6
 
 export type Exposable = Exhibit | Exhibition;
+export type ResourceType = "exhibits" | "exhibitions";
 
 export function isExhibit(resource: Exposable): resource is Exhibit {
     return (resource as Exhibit).exhibitionId !== undefined;
@@ -16,23 +18,32 @@ export function isExhibition(resource: Exposable): resource is Exhibition {
     return (resource as Exhibition).institutionId !== undefined;
 }
 
-const toResourceType = (resource: Exposable) => isExhibit(resource) ? "exhibits" : "exhibitions";
+export const toResourceType = (resource: Exposable): ResourceType => isExhibit(resource) ? "exhibits" : "exhibitions";
 
 export const toImageAsset = (resource: Exposable): ImageAsset[] => {
     const resourceType = toResourceType(resource);
-    return resource.images
-        .map(img => {
-            return {
-                tmpPath: `public/tmp/images/${img.id}`,
-                privatePath: `private/${resource.identityId}/images/${img.id}`,
-                publicPath: `asset/${resourceType}/${resource.id}/images/${img.id}`,
-                thumbnails: {
-                    privatePath: `private/${resource.identityId}/images/${img.id}_thumbnail`,
-                    publicPath: `asset/${resourceType}/${resource.id}/images/${img.id}_thumbnail`,
-                },
-                name: img.name
-            }
-        })
+    const resourceId = resource.id;
+    const identityId = resource.identityId;
+
+    const resourceImages = resource.images.map(img => mapToImageAsset(img.id, identityId, resourceType, resourceId));
+    const articleImages = resource.langOptions.flatMap((lang) => {
+        const imageIds = articleService.getArticleImages(lang.article)
+        return imageIds.map(imgId => mapToImageAsset(imgId, identityId, resourceType, resourceId))
+    });
+
+    return [...resourceImages, ...articleImages];
+}
+
+const mapToImageAsset = (imageId: string, identityId: string, resourceType: ResourceType, resourceId: string): ImageAsset => {
+    return {
+        tmpPath: `public/tmp/images/${imageId}`,
+        privatePath: `private/${identityId}/images/${imageId}`,
+        publicPath: `asset/${resourceType}/${resourceId}/images/${imageId}`,
+        thumbnails: {
+            privatePath: `private/${identityId}/images/${imageId}_thumbnail`,
+            publicPath: `asset/${resourceType}/${resourceId}/images/${imageId}_thumbnail`,
+        },
+    }
 }
 
 export const toQrCodeAsset = (resource: Exhibit | Exhibition): QrCodeAsset => {
@@ -147,4 +158,13 @@ export function getDateString(date: Date) {
 export function roundToPrecision(num: number, precision?: number) {
     const precisionToUse = precision ?? 2;
     return Math.round(num * Math.pow(10, precisionToUse)) / Math.pow(10, precisionToUse);
+}
+
+export function prepareLangOptions(langOptions: string[]) {
+    return langOptions.map(lang => {
+        return {
+            lang,
+            audio: undefined
+        }
+    })
 }

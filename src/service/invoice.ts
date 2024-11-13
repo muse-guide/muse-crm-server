@@ -3,11 +3,11 @@ import {ConfigurationException, NotFoundException} from "../common/exceptions";
 import {Subscription, SubscriptionDao} from "../model/customer";
 import {logger} from "../common/logger";
 import {configurationService} from "./configuration";
-import {nanoid_12, SubscriptionPlanType} from "../model/common";
+import {nanoid_12, PaginatedResults, Pagination, SubscriptionPlanType} from "../model/common";
 import {customerService} from "./customer";
 import {getDateString, roundToPrecision} from "./common";
 import {InvoicePeriod} from "../model/configuration";
-import {InvoiceDetailsDto, InvoiceDto} from "../schema/invoice";
+import {InvoiceDetailsDto, InvoiceDto, invoicePaymentStatus} from "../schema/invoice";
 
 const createInvoices = async (invoicePeriod: InvoicePeriod): Promise<Invoice[]> => {
     const subscriptionsPerCustomer = await getActiveSubscriptionsPerCustomerFor(invoicePeriod)
@@ -122,27 +122,37 @@ const getActiveSubscriptionsPerCustomerFor = async (invoicePeriod: InvoicePeriod
 }
 
 export interface InvoiceFilters {
-    periodFrom: string,
-    periodTo: string
+    paymentStatus: typeof invoicePaymentStatus[number],
 }
 
-const getInvoicesForCustomer = async (customerId: string, filters: InvoiceFilters): Promise<InvoiceDto[]> => {
-    const {periodFrom, periodTo} = filters
+const getInvoicesForCustomer = async (customerId: string, pagination: Pagination, filters: InvoiceFilters): Promise<PaginatedResults> => {
+    const {pageSize, nextPageKey} = pagination
+
+    const {paymentStatus} = filters
     const response = await InvoiceDao
         .query
         .byCustomerId({
             customerId: customerId
         })
-        .where(
-            ({periodStart, periodEnd}, {between}) =>
-                `${between(periodStart, periodFrom, periodTo)}
-                AND ${between(periodEnd, periodFrom, periodTo)}`
-        )
+        .where(({ status }, { eq, ne, exists }) => {
+            let expr
+            if (paymentStatus === "ALL") expr = exists(status)
+            else if (paymentStatus === "PAID") expr = eq(status, "PAID")
+            else expr = ne(status, "PAID")
+
+            return expr
+        })
         .go({
+            cursor: nextPageKey,
+            count: pageSize,
             pages: "all"
         })
 
-    return response.data.map(mapInvoiceToDto)
+    return {
+        items: response.data.map(mapInvoiceToDto),
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
 }
 
 const getInvoiceForCustomer = async (customerId: string, invoiceId: string): Promise<InvoiceDetailsDto> => {
