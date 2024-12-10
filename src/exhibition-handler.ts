@@ -7,6 +7,7 @@ import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
 import {z} from "zod";
+import {logger} from "./common/logger";
 
 /**
  * Creates a new exhibition
@@ -18,7 +19,6 @@ const exhibitionCreate = async (event: APIGatewayProxyEvent): Promise<APIGateway
     try {
         const request: CreateExhibitionDto = createExhibitionSchema.parse(event.body)
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-        const identityId = required.parse(event.headers?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
@@ -27,7 +27,7 @@ const exhibitionCreate = async (event: APIGatewayProxyEvent): Promise<APIGateway
             validateArticleMarkup(lang.article)
         })
 
-        const response = await exhibitionService.createExhibition(customerId, identityId, request)
+        const response = await exhibitionService.createExhibition(customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);

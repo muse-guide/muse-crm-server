@@ -4,10 +4,10 @@ import {resourceStatus, supportedLanguages, supportedVoices} from "./common";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
 
-export const ExhibitionDao = new Entity(
+export const InstitutionDao = new Entity(
     {
         model: {
-            entity: "exhibition",
+            entity: "institution",
             version: "1",
             service: "muse",
         },
@@ -20,17 +20,9 @@ export const ExhibitionDao = new Entity(
                 type: "string",
                 required: true,
             },
-            institutionId: {
-                type: "string",
-                required: true,
-            },
             referenceName: {
                 type: "string",
-                required: true,
-            },
-            includeInstitutionInfo: {
-                type: "boolean",
-                required: true,
+                required: false,
             },
             langOptions: {
                 type: "list",
@@ -42,13 +34,13 @@ export const ExhibitionDao = new Entity(
                             type: supportedLanguages,
                             required: true,
                         },
-                        title: {
+                        name: {
                             type: "string",
                             required: true,
                         },
-                        subtitle: {
+                        subName: {
                             type: "string",
-                            required: true,
+                            required: false,
                         },
                         article: {
                             type: "string",
@@ -106,41 +98,14 @@ export const ExhibitionDao = new Entity(
             },
         },
         indexes: {
-            byId: {
+            byCustomer: {
                 pk: {
                     field: "pk",
-                    composite: ["id"],
-                    casing: "none",
-                },
-                sk: {
-                    field: "sk",
-                    composite: ["id"],
-                    casing: "none",
-                },
-            },
-            byCustomer: {
-                index: "gsi1pk-gsi1sk-index",
-                collection: "customerResources",
-                pk: {
-                    field: "gsi1pk",
                     composite: ["customerId"],
                     casing: "none",
                 },
                 sk: {
-                    field: "gsi1sk",
-                    composite: ["institutionId"],
-                    casing: "none",
-                },
-            },
-            byInstitution: {
-                index: "gsi2pk-gsi2sk-index",
-                pk: {
-                    field: "gsi2pk",
-                    composite: ["institutionId"],
-                    casing: "none",
-                },
-                sk: {
-                    field: "gsi2sk",
+                    field: "sk",
                     composite: ["id"],
                     casing: "none",
                 },
@@ -150,4 +115,4 @@ export const ExhibitionDao = new Entity(
     {client: dynamoClient, table},
 );
 
-export type Exhibition = EntityItem<typeof ExhibitionDao>
+export type Institution = EntityItem<typeof InstitutionDao>

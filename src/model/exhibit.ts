@@ -20,10 +20,6 @@ export const ExhibitDao = new Entity(
                 type: "string",
                 required: true,
             },
-            identityId: {
-                type: "string",
-                required: true,
-            },
             exhibitionId: {
                 type: "string",
                 required: true,

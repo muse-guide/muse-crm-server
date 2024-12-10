@@ -18,7 +18,6 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
     try {
         const request: CreateExhibitDto = createExhibitSchema.parse(event.body)
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-        const identityId = required.parse(event.headers?.["identityid"]) // TODO can we get it from cognito rather thas from FE?
 
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
@@ -27,7 +26,7 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
             validateArticleMarkup(lang.article)
         })
 
-        const response = await exhibitService.createExhibit(customerId, identityId, request)
+        const response = await exhibitService.createExhibit(customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);

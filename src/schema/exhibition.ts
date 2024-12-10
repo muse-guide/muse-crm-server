@@ -49,7 +49,6 @@ export interface ExhibitionDto {
     id: string,
     institutionId: string,
     referenceName: string,
-    qrCodeUrl: string,
     includeInstitutionInfo: boolean,
     langOptions: {
         lang: string,

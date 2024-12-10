@@ -17,13 +17,12 @@ const updateExhibitStepFunctionArn = process.env.UPDATE_EXHIBIT_STEP_FUNCTION_AR
 
 const ZEROS = "000000"
 
-const createExhibit = async (customerId: string, identityId: string, createExhibit: CreateExhibitDto): Promise<MutationResponseDto> => {
+const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto): Promise<MutationResponseDto> => {
     const exhibitId = nanoid_8()
 
     const exhibit: Exhibit = {
         id: exhibitId,
         customerId: customerId,
-        identityId: identityId,
         exhibitionId: createExhibit.exhibitionId,
         referenceName: createExhibit.referenceName,
         number: addLeadingZeros(createExhibit.number),
@@ -48,8 +47,7 @@ const createExhibit = async (customerId: string, identityId: string, createExhib
         entity: exhibitCreated,
         action: "CREATE",
         actor: {
-            customerId: exhibitCreated.customerId,
-            identityId: identityId
+            customerId: exhibitCreated.customerId
         },
         asset: {
             qrCode: qrCode,
@@ -178,7 +176,6 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
         action: "UPDATE",
         actor: {
             customerId: exhibitUpdated.customerId,
-            identityId: exhibitUpdated.identityId
         },
         asset: {
             images: undefinedIfEmpty(assets.imagesToAdd),
@@ -220,7 +217,6 @@ const deleteExhibit = async (exhibitId: string, customerId: string): Promise<Mut
         action: "DELETE",
         actor: {
             customerId: exhibit.customerId,
-            identityId: exhibit.identityId
         },
         asset: {
             delete: {
@@ -249,7 +245,6 @@ const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
         exhibitionId: exhibit.exhibitionId,
         referenceName: exhibit.referenceName,
         number: convertStringToNumber(exhibit.number),
-        qrCodeUrl: `qr-codes/${exhibit.id}.png`,
         langOptions: exhibit.langOptions.map(opt => {
             const audio = opt.audio ? {
                 key: `${exhibit.id}_${opt.lang}`,

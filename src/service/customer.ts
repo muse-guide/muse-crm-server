@@ -9,6 +9,7 @@ import {nanoid} from "nanoid";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
 import {logger} from "../common/logger";
+import {InstitutionDao} from "../model/institution";
 
 // Creates new Customer with Basic subscription
 const createCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
@@ -24,6 +25,8 @@ const createCustomer = async (customerId: string, email: string): Promise<Custom
 }
 
 const createNewCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
+    const subscriptionId = nanoid()
+    const institutionId = nanoid()
 
     const customerResponseItem = await CustomerDao
         .create({

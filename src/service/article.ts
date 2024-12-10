@@ -1,10 +1,7 @@
 import {parse} from "node-html-parser";
-import {GetObjectCommand} from "@aws-sdk/client-s3";
-import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
-import {s3Client} from "../common/aws-clients";
-import {Exposable, ResourceType} from "./common";
+import {Exposable} from "./common";
+import {assetService} from "./asset";
 
-const privateAssetBucket = process.env.CRM_ASSET_BUCKET
 const appDomain = process.env.APP_DOMAIN
 
 const processArticleImages = (markup?: string) => {
@@ -18,7 +15,7 @@ const processArticleImages = (markup?: string) => {
             const src = image.getAttribute('src')
             if (!src) return undefined;
 
-            const idRegex = /images\/(.*?)\?/g.exec(src);
+            const idRegex = /tmp\/(.*?)\?/g.exec(src);
             const imageId = idRegex ? idRegex[1] : undefined;
 
             image.setAttribute('src', imageId ?? "");
@@ -38,17 +35,17 @@ const getArticleImages = (markup?: string): string[] => {
         .filter((id) => id !== undefined);
 }
 
-const preparePresignedArticleImages = async (exposable: Exposable): Promise<Exposable> => {
+const preparePreSignedArticleImages = async (exposable: Exposable): Promise<Exposable> => {
     return {
         ...exposable,
         langOptions: await Promise.all(exposable.langOptions.map(async (lang) => ({
             ...lang,
-            article: await replaceImageIdsWithPresignedUrls(exposable.identityId, lang.article),
+            article: await replaceImageIdsWithPreSignedUrls(exposable.customerId, lang.article),
         }))),
     };
 }
 
-const replaceImageIdsWithPresignedUrls = async (identityId: string, markup?: string) => {
+const replaceImageIdsWithPreSignedUrls = async (customerId: string, markup?: string) => {
     if (!markup) return undefined;
 
     const root = parse(markup);
@@ -58,7 +55,11 @@ const replaceImageIdsWithPresignedUrls = async (identityId: string, markup?: str
         const src = image.getAttribute('src');
         if (!src) return;
 
-        const presignedUrl = await createPresignedUrl(identityId, src);
+        const presignedUrl = await assetService.createGetPreSignedUrlFor({
+            customerId: customerId,
+            assetType: "images",
+            assetId: src,
+        });
         image.setAttribute('src', presignedUrl);
     });
 
@@ -67,13 +68,7 @@ const replaceImageIdsWithPresignedUrls = async (identityId: string, markup?: str
     return root.toString();
 }
 
-const createPresignedUrl = async (identityId: string, imageId: string) => {
-    const key = `private/${identityId}/images/${imageId}`;
-    const command = new GetObjectCommand({Bucket: privateAssetBucket, Key: key});
-    return await getSignedUrl(s3Client, command, {expiresIn: 7200});
-};
-
-const preparePublicArticleImages = (resourceId: string, resourceType: ResourceType, markup?: string): string | undefined => {
+const preparePublicArticleImages = (resourceId: string, markup?: string): string | undefined => {
     if (!markup) return undefined;
 
     const root = parse(markup);
@@ -83,7 +78,7 @@ const preparePublicArticleImages = (resourceId: string, resourceType: ResourceTy
         const src = image.getAttribute('src');
         if (!src) return;
 
-        const publicUrl = `${appDomain}/asset/${resourceType}/${resourceId}/images/${src}`;
+        const publicUrl = `${appDomain}/asset/${resourceId}/images/${src}`;
         image.setAttribute('src', publicUrl);
     });
 
@@ -93,6 +88,6 @@ const preparePublicArticleImages = (resourceId: string, resourceType: ResourceTy
 export const articleService = {
     processArticleImages: processArticleImages,
     getArticleImages: getArticleImages,
-    prepareArticleImages: preparePresignedArticleImages,
+    prepareArticleImages: preparePreSignedArticleImages,
     preparePublicArticleImages: preparePublicArticleImages,
 }

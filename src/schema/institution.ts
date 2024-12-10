@@ -2,14 +2,12 @@ import {z} from "zod";
 import {supportedLanguages, supportedVoices} from "../model/common";
 import {AudioDto, ImageDto} from "./common";
 
-export const createExhibitSchema = z.object({
-    exhibitionId: z.string().length(8),
+export const createInstitutionSchema = z.object({
     referenceName: z.string().min(1).max(200),
-    number: z.number().min(1),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
-        title: z.string().min(1).max(120),
-        subtitle: z.string().min(1).max(200),
+        name: z.string().min(1).max(120),
+        subName: z.string().min(1).max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),
@@ -22,15 +20,14 @@ export const createExhibitSchema = z.object({
     }))
 })
 
-export type CreateExhibitDto = z.infer<typeof createExhibitSchema>;
+export type CreateInstitutionDto = z.infer<typeof createInstitutionSchema>;
 
-export const updateExhibitSchema = z.object({
+export const updateInstitutionSchema = z.object({
     referenceName: z.string().min(1).max(200),
-    number: z.number().min(1),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
-        title: z.string().min(1).max(120),
-        subtitle: z.string().min(1).max(200),
+        name: z.string().min(1).max(120),
+        subName: z.string().min(1).max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),
@@ -43,22 +40,19 @@ export const updateExhibitSchema = z.object({
     }))
 })
 
-export type UpdateExhibitDto = z.infer<typeof updateExhibitSchema>;
+export type UpdateInstitutionDto = z.infer<typeof updateInstitutionSchema>;
 
-export interface ExhibitDto {
+export interface InstitutionDto {
     id: string,
-    exhibitionId: string,
     referenceName: string,
-    number: number,
+    qrCodeUrl: string,
     langOptions: {
         lang: string,
-        title: string,
-        subtitle: string,
+        name: string,
+        subName?: string,
         article?: string,
         audio?: AudioDto
     }[],
     images: ImageDto[],
     status: string
 }
-
-

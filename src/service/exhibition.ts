@@ -16,13 +16,12 @@ const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCT
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
 const updateExhibitionStepFunctionArn = process.env.UPDATE_EXHIBITION_STEP_FUNCTION_ARN
 
-const createExhibition = async (customerId: string, identityId: string, createExhibition: CreateExhibitionDto): Promise<MutationResponseDto> => {
+const createExhibition = async (customerId: string, createExhibition: CreateExhibitionDto): Promise<MutationResponseDto> => {
     const exhibitionId = nanoid_8()
 
     const exhibition: Exhibition = {
         id: exhibitionId,
         customerId: customerId,
-        identityId: identityId,
         institutionId: createExhibition.institutionId,
         includeInstitutionInfo: createExhibition.includeInstitutionInfo,
         referenceName: createExhibition.referenceName,
@@ -48,7 +47,6 @@ const createExhibition = async (customerId: string, identityId: string, createEx
         action: "CREATE",
         actor: {
             customerId: exhibitionCreated.customerId,
-            identityId: identityId
         },
         asset: {
             qrCode: qrCode,
@@ -171,7 +169,6 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
         action: "UPDATE",
         actor: {
             customerId: exhibitionUpdated.customerId,
-            identityId: exhibitionUpdated.identityId
         },
         asset: {
             images: undefinedIfEmpty(assets.imagesToAdd),
@@ -213,7 +210,6 @@ const deleteExhibition = async (exhibitionId: string, customerId: string): Promi
         action: "DELETE",
         actor: {
             customerId: exhibition.customerId,
-            identityId: exhibition.identityId
         },
         asset: {
             delete: {
@@ -242,7 +238,6 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
         institutionId: exhibition.institutionId,
         referenceName: exhibition.referenceName,
         includeInstitutionInfo: exhibition.includeInstitutionInfo,
-        qrCodeUrl: `qr-codes/${exhibition.id}.png`,
         langOptions: exhibition.langOptions.map(opt => {
             const audio = opt.audio ? {
                 key: `${exhibition.id}_${opt.lang}`,

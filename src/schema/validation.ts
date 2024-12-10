@@ -9,8 +9,7 @@ export const uuidId = z.string().uuid();
 export const required = z.string();
 
 const privateAssetBucket = process.env.CRM_ASSET_BUCKET
-const tmpAssetPrefix = `https://${privateAssetBucket}.s3.eu-central-1.amazonaws.com/public/tmp`
-const privateAssetPrefix = `https://${privateAssetBucket}.s3.eu-central-1.amazonaws.com/private`
+const privateAssetBucketUrl = `https://${privateAssetBucket}.s3.eu-central-1.amazonaws.com`
 
 export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: string, msg?: string) => {
     const allEntriesLength = arr.map(i => i[key]).length
@@ -102,7 +101,7 @@ const validateImageTags = (markup: string) => {
         if (!src) {
             throw new BadRequestException(`Image tag has no src attribute.`);
         }
-        if (!src.startsWith(privateAssetPrefix) && !src.startsWith(tmpAssetPrefix)) {
+        if (!src.startsWith(privateAssetBucketUrl)) {
             throw new BadRequestException(`Image from unknown source.`);
         }
     }

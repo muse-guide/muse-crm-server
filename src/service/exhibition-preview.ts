@@ -19,9 +19,9 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibition.langOptions[0]
 
-    const images = exhibition.images.map(img => `${appDomain}/asset/exhibitions/${exhibition.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/exhibitions/${exhibition.id}/audio/${langOption.lang}` : undefined
-    const article = articleService.preparePublicArticleImages(exhibition.id, "exhibitions", langOption.article)
+    const images = exhibition.images.map(img => `${appDomain}/asset/${exhibition.id}/images/${img.id}`)
+    const audio = langOption.audio ? `${appDomain}/asset/${exhibition.id}/audio/${langOption.lang}` : undefined
+    const article = articleService.preparePublicArticleImages(exhibition.id, langOption.article)
 
     return {
         id: exhibition.id,

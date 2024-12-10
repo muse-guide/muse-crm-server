@@ -19,7 +19,6 @@ export interface ExposableMutation extends Mutation {
 
 export interface Actor {
     customerId: string,
-    identityId?: string
 }
 
 export type MutationAction = "CREATE" | "UPDATE" | "DELETE"

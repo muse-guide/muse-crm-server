@@ -21,48 +21,43 @@ export function isExhibition(resource: Exposable): resource is Exhibition {
 export const toResourceType = (resource: Exposable): ResourceType => isExhibit(resource) ? "exhibits" : "exhibitions";
 
 export const toImageAsset = (resource: Exposable): ImageAsset[] => {
-    const resourceType = toResourceType(resource);
-    const resourceId = resource.id;
-    const identityId = resource.identityId;
-
-    const resourceImages = resource.images.map(img => mapToImageAsset(img.id, identityId, resourceType, resourceId));
+    const resourceImages = resource.images.map(img => mapToImageAsset(resource.customerId, resource.id, img.id));
     const articleImages = resource.langOptions.flatMap((lang) => {
         const imageIds = articleService.getArticleImages(lang.article)
-        return imageIds.map(imgId => mapToImageAsset(imgId, identityId, resourceType, resourceId))
+        return imageIds.map(imgId => mapToImageAsset(resource.customerId, resource.id, imgId))
     });
 
     return [...resourceImages, ...articleImages];
 }
 
-const mapToImageAsset = (imageId: string, identityId: string, resourceType: ResourceType, resourceId: string): ImageAsset => {
+const mapToImageAsset = (customerId: string, resourceId: string, imageId: string): ImageAsset => {
     return {
-        tmpPath: `public/tmp/images/${imageId}`,
-        privatePath: `private/${identityId}/images/${imageId}`,
-        publicPath: `asset/${resourceType}/${resourceId}/images/${imageId}`,
+        tmpPath: `${customerId}/tmp/${imageId}`,
+        privatePath: `${customerId}/images/${imageId}`,
+        publicPath: `asset/${resourceId}/images/${imageId}`,
         thumbnails: {
-            privatePath: `private/${identityId}/images/${imageId}_thumbnail`,
-            publicPath: `asset/${resourceType}/${resourceId}/images/${imageId}_thumbnail`,
+            privatePath: `${customerId}/images/${imageId}_thumbnail`,
+            publicPath: `asset/${resourceId}/images/${imageId}_thumbnail`,
         },
     }
 }
 
-export const toQrCodeAsset = (resource: Exhibit | Exhibition): QrCodeAsset => {
+export const toQrCodeAsset = (resource: Exposable): QrCodeAsset => {
     const resourceType = toResourceType(resource);
     return {
-        privatePath: `private/${resource.identityId}/qr-codes/${resource.id}.png`,
+        privatePath: `${resource.customerId}/qrcodes/${resource.id}`,
         value: `${resourceType}/${resource.id}`,
     }
 }
 
-export const toAudioAsset = (resource: Exhibit | Exhibition): AudioAsset[] => {
-    const resourceType = toResourceType(resource);
+export const toAudioAsset = (resource: Exposable): AudioAsset[] => {
     return resource.langOptions
         .filter(opt => opt.audio !== undefined)
         .map(opt => {
             const audio = opt.audio!!
             return {
-                privatePath: `private/${resource.identityId}/audio/${resource.id}_${opt.lang}`,
-                publicPath: `asset/${resourceType}/${resource.id}/audio/${opt.lang}`,
+                privatePath: `${resource.customerId}/audios/${resource.id}_${opt.lang}`,
+                publicPath: `asset/${resource.id}/audios/${opt.lang}`,
                 markup: audio.markup,
                 voice: audio.voice,
                 lang: opt.lang

@@ -38,3 +38,6 @@ export interface Image {
     id: string;
     name: string;
 }
+
+export type AssetType = "images" | "audios" | "qrcodes" | "tmp"
+export const assetType = ["images", "audios", "qrcodes", "tmp"] as const;

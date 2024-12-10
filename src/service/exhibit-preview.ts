@@ -52,9 +52,9 @@ const mapToExhibitPreviewDto = (lang: string, exhibit: Exhibit | null): ExhibitP
     const requestedLangOption = exhibit.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibit.langOptions[0]
 
-    const images = exhibit.images.map(img => `${appDomain}/asset/exhibits/${exhibit.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/exhibits/${exhibit.id}/audio/${langOption.lang}` : undefined
-    const article = articleService.preparePublicArticleImages(exhibit.id, "exhibits", langOption.article)
+    const images = exhibit.images.map(img => `${appDomain}/asset/${exhibit.id}/images/${img.id}`)
+    const audio = langOption.audio ? `${appDomain}/asset/${exhibit.id}/audio/${langOption.lang}` : undefined
+    const article = articleService.preparePublicArticleImages(exhibit.id, langOption.article)
 
     return {
         id: exhibit.id,
