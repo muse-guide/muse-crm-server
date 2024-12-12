@@ -20,7 +20,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
     const langOption = requestedLangOption ?? exhibition.langOptions[0]
 
     const images = exhibition.images.map(img => `${appDomain}/asset/${exhibition.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/${exhibition.id}/audio/${langOption.lang}` : undefined
+    const audio = langOption.audio ? `${appDomain}/asset/${exhibition.id}/audios/${langOption.lang}` : undefined
     const article = articleService.preparePublicArticleImages(exhibition.id, langOption.article)
 
     return {

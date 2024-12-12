@@ -53,7 +53,7 @@ const mapToExhibitPreviewDto = (lang: string, exhibit: Exhibit | null): ExhibitP
     const langOption = requestedLangOption ?? exhibit.langOptions[0]
 
     const images = exhibit.images.map(img => `${appDomain}/asset/${exhibit.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/${exhibit.id}/audio/${langOption.lang}` : undefined
+    const audio = langOption.audio ? `${appDomain}/asset/${exhibit.id}/audios/${langOption.lang}` : undefined
     const article = articleService.preparePublicArticleImages(exhibit.id, langOption.article)
 
     return {

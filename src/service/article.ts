@@ -1,6 +1,7 @@
 import {parse} from "node-html-parser";
 import {Exposable} from "./common";
 import {assetService} from "./asset";
+import {BadRequestException} from "../common/exceptions";
 
 const appDomain = process.env.APP_DOMAIN
 
@@ -15,10 +16,14 @@ const processArticleImages = (markup?: string) => {
             const src = image.getAttribute('src')
             if (!src) return undefined;
 
-            const idRegex = /tmp\/(.*?)\?/g.exec(src);
+            const tmpIdRegex = /tmp\/(.*?)\?/g.exec(src);
+            const tmpImageId = tmpIdRegex ? tmpIdRegex[1] : undefined;
+
+            const idRegex = /images\/(.*?)\?/g.exec(src);
             const imageId = idRegex ? idRegex[1] : undefined;
 
-            image.setAttribute('src', imageId ?? "");
+            if (!imageId && !tmpImageId) throw new BadRequestException("Image id from valid source not found");
+            image.setAttribute('src', imageId ?? tmpImageId ?? '');
         })
 
     return root.toString();
