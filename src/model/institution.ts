@@ -38,7 +38,7 @@ export const InstitutionDao = new Entity(
                             type: "string",
                             required: true,
                         },
-                        subName: {
+                        department: {
                             type: "string",
                             required: false,
                         },
@@ -98,14 +98,28 @@ export const InstitutionDao = new Entity(
             },
         },
         indexes: {
-            byCustomer: {
+            byId: {
                 pk: {
                     field: "pk",
-                    composite: ["customerId"],
+                    composite: ["id"],
                     casing: "none",
                 },
                 sk: {
                     field: "sk",
+                    composite: ["id"],
+                    casing: "none",
+                },
+            },
+            byCustomer: {
+                index: "gsi1pk-gsi1sk-index",
+                collection: "customerResources",
+                pk: {
+                    field: "gsi1pk",
+                    composite: ["customerId"],
+                    casing: "none",
+                },
+                sk: {
+                    field: "gsi1sk",
                     composite: ["id"],
                     casing: "none",
                 },

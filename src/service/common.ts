@@ -4,11 +4,12 @@ import {Exhibition} from "../model/exhibition";
 import {EntityStructure} from "../model/common";
 import crypto from 'crypto';
 import {articleService} from "./article";
+import {Institution} from "../model/institution";
 
 const RESOURCE_NUMBER_LENGTH = 6
 
-export type Exposable = Exhibit | Exhibition;
-export type ResourceType = "exhibits" | "exhibitions";
+export type Exposable = Exhibit | Exhibition | Institution;
+export type ResourceType = "exhibits" | "exhibitions" | "institutions";
 
 export function isExhibit(resource: Exposable): resource is Exhibit {
     return (resource as Exhibit).exhibitionId !== undefined;
@@ -18,7 +19,8 @@ export function isExhibition(resource: Exposable): resource is Exhibition {
     return (resource as Exhibition).institutionId !== undefined;
 }
 
-export const toResourceType = (resource: Exposable): ResourceType => isExhibit(resource) ? "exhibits" : "exhibitions";
+export const toResourceType = (resource: Exposable): ResourceType =>
+    isExhibit(resource) ? "exhibits" : isExhibition(resource) ? "exhibitions" : "institutions";
 
 export const toImageAsset = (resource: Exposable): ImageAsset[] => {
     const resourceImages = resource.images.map(img => mapToImageAsset(resource.customerId, resource.id, img.id));

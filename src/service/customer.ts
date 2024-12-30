@@ -1,4 +1,4 @@
-import {Customer, CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
+import {CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
 import {Exposable, getCurrentDate, isExhibit, isExhibition} from "./common";
 import {CustomerDto, UpdateCustomerDetailsDto} from "../schema/customer";
@@ -9,7 +9,7 @@ import {nanoid} from "nanoid";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
 import {logger} from "../common/logger";
-import {InstitutionDao} from "../model/institution";
+import {institutionService} from "./institution";
 
 // Creates new Customer with Basic subscription
 const createCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
@@ -25,10 +25,7 @@ const createCustomer = async (customerId: string, email: string): Promise<Custom
 }
 
 const createNewCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
-    const subscriptionId = nanoid()
-    const institutionId = nanoid()
-
-    const customerResponseItem = await CustomerDao
+    const customerResponsePromise = CustomerDao
         .create({
             customerId: customerId,
             email: email,
@@ -36,7 +33,7 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         })
         .go()
 
-    const subscriptionResponseItem = await SubscriptionDao
+    const subscriptionResponsePromise = SubscriptionDao
         .create({
             subscriptionId: nanoid(),
             customerId: customerId,
@@ -47,8 +44,16 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         })
         .go()
 
-    const customer = customerResponseItem.data
-    const subscription = subscriptionResponseItem.data
+    const defaultInstitutionResponsePromise = institutionService.createDefaultInstitution(customerId)
+
+    const [customerResponse, subscriptionResponse, defaultInstitutionResponse] = await Promise.all([
+        customerResponsePromise,
+        subscriptionResponsePromise,
+        defaultInstitutionResponsePromise
+    ])
+
+    const customer = customerResponse.data
+    const subscription = subscriptionResponse.data
 
     return mapToCustomerDto({
         customer: customer,
