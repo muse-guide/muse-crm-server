@@ -151,3 +151,16 @@ export const ExhibitDao = new Entity(
 );
 
 export type Exhibit = EntityItem<typeof ExhibitDao>
+
+export interface ExhibitPreview {
+    id: string;
+    exhibitionId: string;
+    number: number;
+    lang: string;
+    langOptions: string[];
+    title: string;
+    subtitle: string;
+    article?: string;
+    imageUrls: string[];
+    audio?: string;
+}

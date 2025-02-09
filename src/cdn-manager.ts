@@ -6,7 +6,7 @@ import {logger} from "./common/logger";
 import {CreateInvalidationCommand} from "@aws-sdk/client-cloudfront";
 import {cdnClient} from "./common/aws-clients";
 
-const distirbutionId = required.parse(process.env.APP_DISTRIBUTION_ID)
+const distributionId = required.parse(process.env.APP_DISTRIBUTION_ID)
 
 export interface InvalidationInput {
     paths: string[],
@@ -16,7 +16,7 @@ const cdnManager = async (invalidation: InvalidationInput) => {
     try {
         logger.info(`Creating invalidation for: ${JSON.stringify(invalidation)}`)
         const input = {
-            DistributionId: distirbutionId,
+            DistributionId: distributionId,
             InvalidationBatch: {
                 Paths: {
                     Quantity: invalidation.paths.length,
@@ -28,7 +28,7 @@ const cdnManager = async (invalidation: InvalidationInput) => {
         const command = new CreateInvalidationCommand(input);
         const response = await cdnClient.send(command);
 
-        logger.debug(`Invalidation for distribution: ${distirbutionId} created for paths: ${invalidation.paths} with id: ${response?.Invalidation?.Id}`);
+        logger.debug(`Invalidation for distribution: ${distributionId} created for paths: ${invalidation.paths} with id: ${response?.Invalidation?.Id}`);
     } catch (err) {
         return handleError(err);
     }

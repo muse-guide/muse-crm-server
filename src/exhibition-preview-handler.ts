@@ -4,6 +4,8 @@ import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
 import {exhibitPreviewService} from "./service/exhibition-preview";
+import {ExhibitionPreview} from "./model/exhibition";
+import {ExhibitionPreviewDto} from "./schema/exhibition-preview";
 
 /**
  * Gets an exhibition by ID for app
@@ -26,3 +28,17 @@ const exhibitionPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGat
 export const exhibitionPreviewGetHandler = middy(exhibitionPreviewGet);
 exhibitionPreviewGetHandler
     .use(cors())
+
+const mapToExhibitionPreviewDto = (exhibition: ExhibitionPreview): ExhibitionPreviewDto => {
+    return {
+        id: exhibition.id,
+        institutionId: exhibition.institutionId,
+        lang: exhibition.lang,
+        langOptions: exhibition.langOptions,
+        title: exhibition.title,
+        subtitle: exhibition.subtitle,
+        article: exhibition.article,
+        imageUrls: exhibition.imageUrls,
+        audio: exhibition.audio
+    }
+}

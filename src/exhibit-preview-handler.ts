@@ -6,6 +6,9 @@ import cors from "@middy/http-cors";
 import {exhibitPreviewService} from "./service/exhibit-preview";
 import {z} from "zod";
 import {logger} from "./common/logger";
+import {ExhibitPreview} from "./model/exhibit";
+import {ExhibitPreviewDto} from "./schema/exhibit-preview";
+import {PaginatedDtoResults} from "./schema/common";
 
 /**
  * Gets exhibits for exhibition by ID for app
@@ -27,8 +30,13 @@ const exhibitPreviewsGet = async (event: APIGatewayProxyEvent): Promise<APIGatew
             nextPageKey: event.queryStringParameters?.["next-page-key"]
         }
 
-        const exhibit = await exhibitPreviewService.getExhibitPreviewsFor(pagination, filters)
-        return responseFormatter(200, exhibit)
+        const exhibitsPaginated = await exhibitPreviewService.getExhibitPreviewsFor(pagination, filters)
+        const response: PaginatedDtoResults = {
+            ...exhibitsPaginated,
+            items: exhibitsPaginated.items.map(exhibit => mapToExhibitPreviewDto(exhibit))
+        }
+
+        return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);
     }
@@ -52,7 +60,9 @@ const exhibitPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         const lang = required.parse(event.queryStringParameters?.["lang"])
 
         const exhibit = await exhibitPreviewService.getExhibitPreview(exhibitId, lang)
-        return responseFormatter(200, exhibit)
+        const exhibitDto = mapToExhibitPreviewDto(exhibit)
+
+        return responseFormatter(200, exhibitDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -61,3 +71,18 @@ const exhibitPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGatewa
 export const exhibitPreviewGetHandler = middy(exhibitPreviewGet);
 exhibitPreviewGetHandler
     .use(cors())
+
+const mapToExhibitPreviewDto = (preview: ExhibitPreview): ExhibitPreviewDto => {
+    return {
+        id: preview.id,
+        exhibitionId: preview.exhibitionId,
+        number: preview.number,
+        lang: preview.lang,
+        langOptions: preview.langOptions,
+        title: preview.title,
+        subtitle: preview.subtitle,
+        article: preview.article,
+        imageUrls: preview.imageUrls,
+        audio: preview.audio
+    }
+}

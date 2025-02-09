@@ -138,3 +138,15 @@ export const ExhibitionDao = new Entity(
 );
 
 export type Exhibition = EntityItem<typeof ExhibitionDao>
+
+export interface ExhibitionPreview {
+    id: string;
+    institutionId?: string;
+    lang: string;
+    langOptions: string[];
+    title: string;
+    subtitle: string;
+    article?: string;
+    imageUrls: string[];
+    audio?: string;
+}

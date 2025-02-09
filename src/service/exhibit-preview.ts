@@ -1,20 +1,21 @@
 import {NotFoundException} from "../common/exceptions";
-import {Exhibit, ExhibitDao} from "../model/exhibit";
+import {Exhibit, ExhibitDao, ExhibitPreview} from "../model/exhibit";
 import {ExhibitPreviewDto} from "../schema/exhibit-preview";
 import {addLeadingZeros, convertStringToNumber} from "./common";
 import {PaginatedResults, Pagination} from "../model/common";
 import {articleService} from "./article";
+import {PaginatedDtoResults} from "../schema/common";
 
 const appDomain = process.env.APP_DOMAIN
 
-const getExhibitPreview = async (exhibitId: string, lang: string): Promise<ExhibitPreviewDto> => {
+const getExhibitPreview = async (exhibitId: string, lang: string): Promise<ExhibitPreview> => {
     const {data: exhibit} = await ExhibitDao
         .get({
             id: exhibitId
         })
         .go()
 
-    return mapToExhibitPreviewDto(lang, exhibit)
+    return prepareExhibitPreview(lang, exhibit)
 }
 
 export interface ExhibitsFilter {
@@ -23,7 +24,7 @@ export interface ExhibitsFilter {
     number?: number;
 }
 
-const getExhibitPreviewsFor = async (pagination: Pagination, filters: ExhibitsFilter): Promise<PaginatedResults> => {
+const getExhibitPreviewsFor = async (pagination: Pagination, filters: ExhibitsFilter): Promise<PaginatedResults<ExhibitPreview>> => {
     const {pageSize, nextPageKey} = pagination
     const response = await ExhibitDao
         .query
@@ -38,13 +39,13 @@ const getExhibitPreviewsFor = async (pagination: Pagination, filters: ExhibitsFi
         })
 
     return {
-        items: response.data.map(exhibit => mapToExhibitPreviewDto(filters.lang, exhibit)),
+        items: response.data.map(exhibit => prepareExhibitPreview(filters.lang, exhibit)),
         count: response.data.length,
         nextPageKey: response.cursor ?? undefined
     }
 }
 
-const mapToExhibitPreviewDto = (lang: string, exhibit: Exhibit | null): ExhibitPreviewDto => {
+const prepareExhibitPreview = (lang: string, exhibit: Exhibit | null): ExhibitPreview => {
     if (!exhibit || exhibit.langOptions.length < 1) {
         throw new NotFoundException("Exhibit does not exist.")
     }

@@ -7,8 +7,6 @@ export const audioPreviewRequest = z.object({
     lang: z.enum(supportedLanguages),
 })
 
-export type AudioPreviewRequestDto = z.infer<typeof audioPreviewRequest>;
-
 export type AudioPreviewResponseDto = {
     audio: {
         key: string,

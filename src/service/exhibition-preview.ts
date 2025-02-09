@@ -1,11 +1,10 @@
 import {NotFoundException} from "../common/exceptions";
-import {ExhibitionDao} from "../model/exhibition";
-import {ExhibitionPreviewDto} from "../schema/exhibition-preview";
+import {ExhibitionDao, ExhibitionPreview} from "../model/exhibition";
 import {articleService} from "./article";
 
 const appDomain = process.env.APP_DOMAIN
 
-const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise<ExhibitionPreviewDto> => {
+const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise<ExhibitionPreview> => {
     const {data: exhibition} = await ExhibitionDao
         .get({
             id: exhibitionId
@@ -14,11 +13,6 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 
     if (!exhibition || exhibition.langOptions.length < 1) {
         throw new NotFoundException("Exhibition does not exist.")
-    }
-
-    let institutionId = undefined
-    if (exhibition.includeInstitutionInfo) {
-        // TODO: Implement institutionService.getInstitution
     }
 
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
@@ -30,7 +24,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 
     return {
         id: exhibition.id,
-        institutionId: institutionId,
+        institutionId: exhibition.institutionId,
         lang: langOption.lang,
         langOptions: exhibition.langOptions.map((opt: { lang: string; }) => opt.lang),
         title: langOption.title,
