@@ -22,7 +22,7 @@ export const ExhibitionDao = new Entity(
             },
             institutionId: {
                 type: "string",
-                required: true,
+                required: false,
             },
             referenceName: {
                 type: "string",
@@ -128,19 +128,6 @@ export const ExhibitionDao = new Entity(
                 },
                 sk: {
                     field: "gsi1sk",
-                    composite: ["institutionId"],
-                    casing: "none",
-                },
-            },
-            byInstitution: {
-                index: "gsi2pk-gsi2sk-index",
-                pk: {
-                    field: "gsi2pk",
-                    composite: ["institutionId"],
-                    casing: "none",
-                },
-                sk: {
-                    field: "gsi2sk",
                     composite: ["id"],
                     casing: "none",
                 },

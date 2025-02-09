@@ -16,6 +16,11 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
         throw new NotFoundException("Exhibition does not exist.")
     }
 
+    let institutionId = undefined
+    if (exhibition.includeInstitutionInfo) {
+        // TODO: Implement institutionService.getInstitution
+    }
+
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibition.langOptions[0]
 
@@ -25,7 +30,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 
     return {
         id: exhibition.id,
-        institutionId: exhibition.includeInstitutionInfo ? exhibitionId : undefined,
+        institutionId: institutionId,
         lang: langOption.lang,
         langOptions: exhibition.langOptions.map((opt: { lang: string; }) => opt.lang),
         title: langOption.title,

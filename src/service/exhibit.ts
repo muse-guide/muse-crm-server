@@ -1,15 +1,15 @@
 import {Exhibit, ExhibitDao} from "../model/exhibit";
-import {nanoid_8, PaginatedResults, Pagination} from "../model/common";
-import {CreateExhibitDto, ExhibitDto, UpdateExhibitDto} from "../schema/exhibit";
+import {MutationResponse, nanoid_8, PaginatedResults, Pagination} from "../model/common";
+import {CreateExhibitDto, UpdateExhibitDto} from "../schema/exhibit";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {NotFoundException} from "../common/exceptions";
-import {MutationResponseDto} from "../schema/common";
-import {addLeadingZeros, convertStringToNumber, prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
+import {addLeadingZeros, prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
 import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
 import {articleService} from "./article";
+import {exhibitionService} from "./exhibition";
 
 const createExhibitStepFunctionArn = process.env.CREATE_EXHIBIT_STEP_FUNCTION_ARN
 const deleteExhibitStepFunctionArn = process.env.DELETE_EXHIBIT_STEP_FUNCTION_ARN
@@ -17,13 +17,15 @@ const updateExhibitStepFunctionArn = process.env.UPDATE_EXHIBIT_STEP_FUNCTION_AR
 
 const ZEROS = "000000"
 
-const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto): Promise<MutationResponseDto> => {
+const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto): Promise<MutationResponse> => {
     const exhibitId = nanoid_8()
+    // Validate that the exhibition exists and the customer has access to it
+    const exhibition = await exhibitionService.getExhibitionForCustomer(createExhibit.exhibitionId, customerId)
 
     const exhibit: Exhibit = {
         id: exhibitId,
         customerId: customerId,
-        exhibitionId: createExhibit.exhibitionId,
+        exhibitionId: exhibition.id,
         referenceName: createExhibit.referenceName,
         number: addLeadingZeros(createExhibit.number),
         langOptions: createExhibit.langOptions.map(lang => ({
@@ -69,7 +71,7 @@ const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto
     }
 }
 
-const getExhibit = async (exhibitId: string, customerId: string): Promise<Exhibit> => {
+const getExhibitForCustomer = async (exhibitId: string, customerId: string): Promise<Exhibit> => {
     const {data: exhibit} = await ExhibitDao
         .get({
             id: exhibitId
@@ -82,18 +84,12 @@ const getExhibit = async (exhibitId: string, customerId: string): Promise<Exhibi
     return exhibit
 }
 
-const getExhibitForCustomer = async (exhibitId: string, customerId: string): Promise<ExhibitDto> => {
-    const exhibit = await getExhibit(exhibitId, customerId)
-    const exhibitWithImagesPresigned = await articleService.prepareArticleImages(exhibit) as Exhibit
-    return mapToExhibitDto(exhibitWithImagesPresigned)
-}
-
 export interface ExhibitionsFilter {
     exhibitionId?: string,
     referenceNameLike?: string
 }
 
-const searchExhibitsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults> => {
+const searchExhibitsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults<Exhibit>> => {
     const {pageSize, nextPageKey} = pagination
     const response = await ExhibitDao
         .query
@@ -119,31 +115,14 @@ const searchExhibitsForCustomer = async (customerId: string, pagination: Paginat
         })
 
     return {
-        items: response.data.map(mapToExhibitDto),
+        items: response.data,
         count: response.data.length,
         nextPageKey: response.cursor ?? undefined
     }
 }
 
-const getAllExhibitsForCustomer = async (customerId: string): Promise<PaginatedResults> => {
-    const response = await ExhibitDao
-        .query
-        .byCustomer({
-            customerId: customerId,
-        })
-        .go({
-            pages: "all"
-        })
-
-    return {
-        items: response.data.map(mapToExhibitDto),
-        count: response.data.length,
-        nextPageKey: response.cursor ?? undefined
-    }
-}
-
-const updateExhibit = async (exhibitId: string, customerId: string, updateExhibit: UpdateExhibitDto): Promise<MutationResponseDto> => {
-    const exhibit = await getExhibit(exhibitId, customerId)
+const updateExhibit = async (exhibitId: string, customerId: string, updateExhibit: UpdateExhibitDto): Promise<MutationResponse> => {
+    const exhibit = await getExhibitForCustomer(exhibitId, customerId)
     // TODO add audio input validation here
 
     await customerService.authorizeResourceUpdate(customerId, {...exhibit, langOptions: updateExhibit.langOptions})
@@ -153,7 +132,6 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
             id: exhibitId
         })
         .set({
-            exhibitionId: exhibit.exhibitionId,
             referenceName: updateExhibit.referenceName,
             number: addLeadingZeros(updateExhibit.number),
             langOptions: updateExhibit.langOptions.map(lang => ({
@@ -200,8 +178,8 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
     }
 }
 
-const deleteExhibit = async (exhibitId: string, customerId: string): Promise<MutationResponseDto> => {
-    const exhibit = await getExhibit(exhibitId, customerId)
+const deleteExhibit = async (exhibitId: string, customerId: string): Promise<MutationResponse> => {
+    const exhibit = await getExhibitForCustomer(exhibitId, customerId)
 
     const {privateAssetToDelete, publicAssetToDelete} = prepareAssetsForDeletion(exhibit)
 
@@ -239,42 +217,10 @@ const deleteExhibit = async (exhibitId: string, customerId: string): Promise<Mut
     }
 }
 
-const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
-    return {
-        id: exhibit.id,
-        exhibitionId: exhibit.exhibitionId,
-        referenceName: exhibit.referenceName,
-        number: convertStringToNumber(exhibit.number),
-        langOptions: exhibit.langOptions.map(opt => {
-            const audio = opt.audio ? {
-                key: `${exhibit.id}_${opt.lang}`,
-                markup: opt.audio.markup,
-                voice: opt.audio.voice,
-            } : undefined
-
-            return {
-                lang: opt.lang,
-                title: opt.title,
-                subtitle: opt.subtitle,
-                article: opt.article,
-                audio: audio
-            }
-        }),
-        images: exhibit.images.map(img => {
-            return {
-                id: img.id,
-                name: img.name
-            }
-        }),
-        status: exhibit.status
-    };
-}
-
 export const exhibitService = {
     createExhibit: createExhibit,
     getExhibitForCustomer: getExhibitForCustomer,
     searchExhibitsForCustomer: searchExhibitsForCustomer,
-    getAllExhibitsForCustomer: getAllExhibitsForCustomer,
     deleteExhibit: deleteExhibit,
     updateExhibit: updateExhibit,
 };

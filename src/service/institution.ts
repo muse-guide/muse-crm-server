@@ -1,35 +1,43 @@
-import {MutationResponseDto} from "../schema/common";
+import {MutationResponse, nanoid_8} from "../model/common";
 import {articleService} from "./article";
-import {prepareAssetForUpdate, toQrCodeAsset} from "./common";
+import {prepareAssetForUpdate, prepareAssetsForCreation} from "./common";
 import {ExposableMutation} from "../model/mutation";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
-import {InstitutionDto, UpdateInstitutionDto} from "../schema/institution";
+import {UpsertInstitutionRequest} from "../schema/institution";
 import {Institution, InstitutionDao} from "../model/institution";
-import {nanoid} from "nanoid";
-import {QrCodeAsset} from "../model/asset";
-import {NotFoundException} from "../common/exceptions";
+import {ConfigurationException, NotFoundException} from "../common/exceptions";
+import {customerService} from "./customer";
+import {exhibitionService} from "./exhibition";
 
 const createInstitutionStepFunctionArn = process.env.CREATE_INSTITUTION_STEP_FUNCTION_ARN
 const updateInstitutionStepFunctionArn = process.env.UPDATE_INSTITUTION_STEP_FUNCTION_ARN
 
-const createDefaultInstitution = async (customerId: string): Promise<MutationResponseDto> => {
-    const institutionId = nanoid()
+const createInstitution = async (customerId: string, request: UpsertInstitutionRequest): Promise<MutationResponse> => {
+    const institutionId = nanoid_8()
 
     const institution: Institution = {
         id: institutionId,
         customerId: customerId,
-        langOptions: [],
-        images: [],
+        referenceName: request.referenceName,
+        langOptions: request.langOptions.map(lang => ({
+            ...lang,
+            article: articleService.processArticleImages(lang.article)
+        })),
+        images: request.images ?? [],
         status: "PROCESSING",
     }
+
+    await customerService.authorizeResourceCreation(customerId, institution)
 
     const {data: institutionCreated} = await InstitutionDao
         .create(institution)
         .go()
 
-    const qrCode: QrCodeAsset = toQrCodeAsset(institution);
+    await exhibitionService.updateInstitutionIdForAllCustomerExhibitions(customerId, institutionCreated.id)
+
+    const {audios, images, qrCode} = prepareAssetsForCreation(institutionCreated);
 
     const mutation: ExposableMutation = {
         entityId: institutionCreated.id,
@@ -40,6 +48,8 @@ const createDefaultInstitution = async (customerId: string): Promise<MutationRes
         },
         asset: {
             qrCode: qrCode,
+            images: undefinedIfEmpty(images),
+            audios: undefinedIfEmpty(audios)
         },
     }
 
@@ -56,19 +66,21 @@ const createDefaultInstitution = async (customerId: string): Promise<MutationRes
     }
 }
 
-const updateInstitution = async (institutionId: string, customerId: string, updateInstitution: UpdateInstitutionDto): Promise<MutationResponseDto> => {
-    const institution = await getInstitution(institutionId, customerId)
+const updateInstitution = async (institutionId: string, customerId: string, request: UpsertInstitutionRequest): Promise<MutationResponse> => {
+    const institution = await getInstitutionInternal(institutionId, customerId)
+
+    await customerService.authorizeResourceUpdate(customerId, {...institution, langOptions: request.langOptions})
 
     const {data: institutionUpdated} = await InstitutionDao
         .patch({
             id: institutionId
         }).set({
-            referenceName: updateInstitution.referenceName,
-            langOptions: updateInstitution.langOptions.map(lang => ({
+            referenceName: request.referenceName,
+            langOptions: request.langOptions.map(lang => ({
                 ...lang,
                 article: articleService.processArticleImages(lang.article)
             })),
-            images: updateInstitution.images,
+            images: request.images,
             status: "PROCESSING",
             version: Date.now(),
         })
@@ -108,7 +120,7 @@ const updateInstitution = async (institutionId: string, customerId: string, upda
     }
 }
 
-const getInstitution = async (institutionId: string, customerId: string): Promise<Institution> => {
+const getInstitutionInternal = async (institutionId: string, customerId: string): Promise<Institution> => {
     const {data: institution} = await InstitutionDao
         .get({
             id: institutionId
@@ -116,48 +128,43 @@ const getInstitution = async (institutionId: string, customerId: string): Promis
         .go()
 
     if (!institution || customerId !== institution.customerId) {
-        throw new NotFoundException("Exhibition does not exist.")
+        throw new NotFoundException("Institution does not exist.")
     }
     return institution
 }
 
-const getInstitutionForCustomer = async (institutionId: string, customerId: string): Promise<InstitutionDto> => {
-    const institution = await getInstitution(institutionId, customerId)
-    const institutionWithImagesPreSigned = await articleService.prepareArticleImages(institution) as Institution
-    return mapToInstitutionDto(institutionWithImagesPreSigned)
+const findInstitutionForCustomer = async (customerId: string): Promise<Institution | undefined> => {
+    const {data: institutions} = await InstitutionDao
+        .query
+        .byCustomer({
+            customerId: customerId
+        })
+        .go()
+
+    if (institutions.length > 1) {
+        throw new ConfigurationException("Multiple institutions found.")
+    }
+
+    if (!institutions || institutions.length === 0) {
+        return undefined
+    }
+
+    return institutions[0]
 }
 
-const mapToInstitutionDto = (institution: Institution): InstitutionDto => {
-    return {
-        id: institution.id,
-        referenceName: institution.referenceName,
-        langOptions: institution.langOptions.map(opt => {
-            const audio = opt.audio ? {
-                key: `${institution.id}_${opt.lang}`,
-                markup: opt.audio.markup,
-                voice: opt.audio.voice,
-            } : undefined
+const getInstitutionForCustomer = async (customerId: string): Promise<Institution> => {
+    const institution = await findInstitutionForCustomer(customerId)
 
-            return {
-                lang: opt.lang,
-                name: opt.name,
-                department: opt.department,
-                article: opt.article,
-                audio: audio
-            }
-        }),
-        images: institution.images.map(img => {
-            return {
-                id: img.id,
-                name: img.name
-            }
-        }),
-        status: institution.status
+    if (!institution) {
+        throw new NotFoundException("Institution does not exist.")
     }
+
+    return institution
 }
 
 export const institutionService = {
-    createDefaultInstitution,
-    getInstitutionForCustomer,
-    updateInstitution
+    createInstitution: createInstitution,
+    updateInstitution: updateInstitution,
+    getInstitutionForCustomer: getInstitutionForCustomer,
+    findInstitutionForCustomer: findInstitutionForCustomer
 };

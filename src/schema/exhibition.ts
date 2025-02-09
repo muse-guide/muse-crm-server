@@ -4,7 +4,6 @@ import {AudioDto, ImageDto} from "./common";
 
 export const createExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(200),
-    institutionId: z.string().length(8),
     includeInstitutionInfo: z.boolean(),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
@@ -22,7 +21,7 @@ export const createExhibitionSchema = z.object({
     }))
 })
 
-export type CreateExhibitionDto = z.infer<typeof createExhibitionSchema>;
+export type CreateExhibitionRequest = z.infer<typeof createExhibitionSchema>;
 
 export const updateExhibitionSchema = z.object({
     referenceName: z.string().min(1).max(200),
@@ -43,11 +42,11 @@ export const updateExhibitionSchema = z.object({
     }))
 })
 
-export type UpdateExhibitionDto = z.infer<typeof updateExhibitionSchema>;
+export type UpdateExhibitionRequest = z.infer<typeof updateExhibitionSchema>;
 
 export interface ExhibitionDto {
     id: string,
-    institutionId: string,
+    institutionId?: string,
     referenceName: string,
     includeInstitutionInfo: boolean,
     langOptions: {

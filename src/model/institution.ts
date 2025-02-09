@@ -34,11 +34,11 @@ export const InstitutionDao = new Entity(
                             type: supportedLanguages,
                             required: true,
                         },
-                        name: {
+                        title: {
                             type: "string",
                             required: true,
                         },
-                        department: {
+                        subtitle: {
                             type: "string",
                             required: false,
                         },

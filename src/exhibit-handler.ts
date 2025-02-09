@@ -1,12 +1,16 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, required, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
+import {nanoId, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
 import {ExhibitionsFilter, exhibitService} from "./service/exhibit";
-import {CreateExhibitDto, createExhibitSchema, updateExhibitSchema} from "./schema/exhibit";
+import {CreateExhibitDto, createExhibitSchema, ExhibitDto, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
 import {z} from "zod";
+import {articleService} from "./service/article";
+import {Exhibit} from "./model/exhibit";
+import {convertStringToNumber} from "./service/common";
+import {PaginatedDtoResults} from "./schema/common";
 
 /**
  * Creates a new exhibit
@@ -50,8 +54,10 @@ const exhibitGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
         const exhibitId = nanoId.parse(event.pathParameters?.["id"])
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const exhibit = await exhibitService.getExhibitForCustomer(exhibitId, customerId)
+        const exhibitWithImagesPresigned = await articleService.prepareArticleImages(exhibit) as Exhibit
+        const exhibitDto = mapToExhibitDto(exhibitWithImagesPresigned)
 
-        return responseFormatter(200, exhibit)
+        return responseFormatter(200, exhibitDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -82,8 +88,13 @@ const exhibitGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
             nextPageKey: event.queryStringParameters?.["next-page-key"]
         }
 
-        const exhibits = await exhibitService.searchExhibitsForCustomer(customerId, pagination, filters)
-        return responseFormatter(200, exhibits)
+        const exhibitsPaginated = await exhibitService.searchExhibitsForCustomer(customerId, pagination, filters)
+        const response: PaginatedDtoResults = {
+            ...exhibitsPaginated,
+            items: exhibitsPaginated.items.map(exhibit => mapToExhibitDto(exhibit))
+        }
+
+        return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);
     }
@@ -149,3 +160,35 @@ exhibitUpdateHandler
     .use(httpJsonBodyParser({
         disableContentTypeError: true
     }))
+
+
+const mapToExhibitDto = (exhibit: Exhibit): ExhibitDto => {
+    return {
+        id: exhibit.id,
+        exhibitionId: exhibit.exhibitionId,
+        referenceName: exhibit.referenceName,
+        number: convertStringToNumber(exhibit.number),
+        langOptions: exhibit.langOptions.map(opt => {
+            const audio = opt.audio ? {
+                key: `${exhibit.id}_${opt.lang}`,
+                markup: opt.audio.markup,
+                voice: opt.audio.voice,
+            } : undefined
+
+            return {
+                lang: opt.lang,
+                title: opt.title,
+                subtitle: opt.subtitle,
+                article: opt.article,
+                audio: audio
+            }
+        }),
+        images: exhibit.images.map(img => {
+            return {
+                id: img.id,
+                name: img.name
+            }
+        }),
+        status: exhibit.status
+    };
+}

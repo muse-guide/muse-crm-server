@@ -203,6 +203,7 @@ export type CustomerWithSubscriptions = {
 
 export type CustomerResources = {
     customerId: string,
+    institutionsCount: number,
     exhibitionsCount: number,
     exhibitsCount: number,
     maxLanguages: number,

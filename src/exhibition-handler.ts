@@ -1,13 +1,15 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, required, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
+import {nanoId, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
 import {exhibitionService, ExhibitionsFilter} from "./service/exhibition";
-import {CreateExhibitionDto, createExhibitionSchema, updateExhibitionSchema} from "./schema/exhibition";
+import {CreateExhibitionRequest, createExhibitionSchema, ExhibitionDto, updateExhibitionSchema} from "./schema/exhibition";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
 import {z} from "zod";
-import {logger} from "./common/logger";
+import {articleService} from "./service/article";
+import {Exhibition} from "./model/exhibition";
+import {PaginatedDtoResults} from "./schema/common";
 
 /**
  * Creates a new exhibition
@@ -17,7 +19,7 @@ import {logger} from "./common/logger";
  */
 const exhibitionCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        const request: CreateExhibitionDto = createExhibitionSchema.parse(event.body)
+        const request: CreateExhibitionRequest = createExhibitionSchema.parse(event.body)
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
@@ -51,8 +53,10 @@ const exhibitionGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         const exhibitionId = nanoId.parse(event.pathParameters?.["id"])
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const exhibition = await exhibitionService.getExhibitionForCustomer(exhibitionId, customerId)
+        const exhibitionWithImagesPresigned = await articleService.prepareArticleImages(exhibition) as Exhibition
+        const exhibitionDto = mapToExhibitionDto(exhibitionWithImagesPresigned)
 
-        return responseFormatter(200, exhibition)
+        return responseFormatter(200, exhibitionDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -82,8 +86,13 @@ const exhibitionGetAll = async (event: APIGatewayProxyEvent): Promise<APIGateway
             nextPageKey: event.queryStringParameters?.["next-page-key"]
         }
 
-        const exhibitions = await exhibitionService.searchExhibitionsForCustomer(customerId, pagination, filters)
-        return responseFormatter(200, exhibitions)
+        const exhibitionsPaginated = await exhibitionService.searchExhibitionsForCustomer(customerId, pagination, filters)
+        const response: PaginatedDtoResults = {
+            ...exhibitionsPaginated,
+            items: exhibitionsPaginated.items.map(exhibition => mapToExhibitionDto(exhibition))
+        }
+
+        return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);
     }
@@ -149,3 +158,35 @@ exhibitionUpdateHandler
     .use(httpJsonBodyParser({
         disableContentTypeError: true
     }))
+
+
+const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
+    return {
+        id: exhibition.id,
+        institutionId: exhibition.institutionId,
+        referenceName: exhibition.referenceName,
+        includeInstitutionInfo: exhibition.includeInstitutionInfo,
+        langOptions: exhibition.langOptions.map(opt => {
+            const audio = opt.audio ? {
+                key: `${exhibition.id}_${opt.lang}`,
+                markup: opt.audio.markup,
+                voice: opt.audio.voice,
+            } : undefined
+
+            return {
+                lang: opt.lang,
+                title: opt.title,
+                subtitle: opt.subtitle,
+                article: opt.article,
+                audio: audio
+            }
+        }),
+        images: exhibition.images.map(img => {
+            return {
+                id: img.id,
+                name: img.name
+            }
+        }),
+        status: exhibition.status
+    };
+}

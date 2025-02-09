@@ -1,6 +1,6 @@
 import {CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
-import {Exposable, getCurrentDate, isExhibit, isExhibition} from "./common";
+import {Exposable, getCurrentDate, isExhibit, isExhibition, isInstitution} from "./common";
 import {CustomerDto, UpdateCustomerDetailsDto} from "../schema/customer";
 import {Service} from "electrodb";
 import {CustomerException} from "../common/exceptions";
@@ -9,7 +9,7 @@ import {nanoid} from "nanoid";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
 import {logger} from "../common/logger";
-import {institutionService} from "./institution";
+import {InstitutionDao} from "../model/institution";
 
 // Creates new Customer with Basic subscription
 const createCustomer = async (customerId: string, email: string): Promise<CustomerDto> => {
@@ -44,12 +44,10 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         })
         .go()
 
-    const defaultInstitutionResponsePromise = institutionService.createDefaultInstitution(customerId)
 
-    const [customerResponse, subscriptionResponse, defaultInstitutionResponse] = await Promise.all([
+    const [customerResponse, subscriptionResponse] = await Promise.all([
         customerResponsePromise,
         subscriptionResponsePromise,
-        defaultInstitutionResponsePromise
     ])
 
     const customer = customerResponse.data
@@ -167,6 +165,7 @@ const validateIfCanChangeSubscription = async (customerId: string, activePlan: S
 
 const getCustomerResources = async (customerId: string): Promise<CustomerResources> => {
     const CustomerResourcesService = new Service({
+        institution: InstitutionDao,
         exhibition: ExhibitionDao,
         exhibit: ExhibitDao,
     });
@@ -180,15 +179,18 @@ const getCustomerResources = async (customerId: string): Promise<CustomerResourc
             pages: "all"
         })
 
+    const institutions = customerResourcesResponseItem.data.institution
     const exhibitions = customerResourcesResponseItem.data.exhibition
     const exhibits = customerResourcesResponseItem.data.exhibit
 
+    const maxLanguagesInInstitutions = institutions.reduce((acc, institution) => acc + institution.langOptions.length, 0)
     const maxLanguagesInExhibitions = exhibitions.reduce((acc, exhibition) => acc + exhibition.langOptions.length, 0)
     const maxLanguagesInExhibits = exhibits.reduce((acc, exhibit) => acc + exhibit.langOptions.length, 0)
-    const maxLanguages = maxLanguagesInExhibitions > maxLanguagesInExhibits ? maxLanguagesInExhibitions : maxLanguagesInExhibits
+    const maxLanguages = Math.max(maxLanguagesInInstitutions, maxLanguagesInExhibitions, maxLanguagesInExhibits);
 
     return {
         customerId: customerId,
+        institutionsCount: institutions.length,
         exhibitionsCount: exhibitions.length,
         exhibitsCount: exhibits.length,
         maxLanguages: maxLanguages
@@ -258,6 +260,10 @@ const authorizeResourceCreation = async (customerId: string, resource: Exposable
 
     if (customer.status !== "ACTIVE") {
         throw new CustomerException(`Customer ${customerId} is not active. Customer status: ${customer.status}`, 403)
+    }
+
+    if (isInstitution(resource) && customerResources.institutionsCount > 0) {
+        throw new CustomerException(`Customer ${customerId} already has an institution.`, 403)
     }
 
     if (isExhibition(resource) && subscriptionPlan.maxExhibitions <= customerResources.exhibitionsCount) {

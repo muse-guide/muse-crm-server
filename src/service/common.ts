@@ -11,12 +11,16 @@ const RESOURCE_NUMBER_LENGTH = 6
 export type Exposable = Exhibit | Exhibition | Institution;
 export type ResourceType = "exhibits" | "exhibitions" | "institutions";
 
+export function isInstitution(resource: Exposable): resource is Institution {
+    return isExhibit(resource) ? false : !isExhibition(resource);
+}
+
 export function isExhibit(resource: Exposable): resource is Exhibit {
     return (resource as Exhibit).exhibitionId !== undefined;
 }
 
 export function isExhibition(resource: Exposable): resource is Exhibition {
-    return (resource as Exhibition).institutionId !== undefined;
+    return (resource as Exhibition).includeInstitutionInfo !== undefined;
 }
 
 export const toResourceType = (resource: Exposable): ResourceType =>

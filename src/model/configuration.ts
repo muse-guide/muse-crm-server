@@ -47,12 +47,17 @@ export interface InvoicePeriod {
 }
 
 export const invoicePeriods: InvoicePeriod[] = [
-    {periodStart: "2024-07-01", periodEnd: "2024-07-31", paymentDue: "2024-08-15", invoicePrefix: "INV-2024-07"},
-    {periodStart: "2024-08-01", periodEnd: "2024-08-31", paymentDue: "2024-09-15", invoicePrefix: "INV-2024-08"},
-    {periodStart: "2024-09-01", periodEnd: "2024-09-30", paymentDue: "2024-10-15", invoicePrefix: "INV-2024-09"},
-    {periodStart: "2024-10-01", periodEnd: "2024-10-31", paymentDue: "2024-11-15", invoicePrefix: "INV-2024-10"},
-    {periodStart: "2024-11-01", periodEnd: "2024-11-30", paymentDue: "2024-12-15", invoicePrefix: "INV-2024-11"},
     {periodStart: "2024-12-01", periodEnd: "2024-12-31", paymentDue: "2025-01-15", invoicePrefix: "INV-2024-12"},
+    {periodStart: "2025-01-01", periodEnd: "2025-01-31", paymentDue: "2025-02-15", invoicePrefix: "INV-2025-01"},
+    {periodStart: "2025-02-01", periodEnd: "2025-02-28", paymentDue: "2025-03-15", invoicePrefix: "INV-2025-02"},
+    {periodStart: "2025-03-01", periodEnd: "2025-03-31", paymentDue: "2025-04-15", invoicePrefix: "INV-2025-03"},
+    {periodStart: "2025-04-01", periodEnd: "2025-04-30", paymentDue: "2025-05-15", invoicePrefix: "INV-2025-04"},
+    {periodStart: "2025-05-01", periodEnd: "2025-05-31", paymentDue: "2025-06-15", invoicePrefix: "INV-2025-05"},
+    {periodStart: "2025-06-01", periodEnd: "2025-06-30", paymentDue: "2025-07-15", invoicePrefix: "INV-2025-06"},
+    {periodStart: "2025-07-01", periodEnd: "2025-07-31", paymentDue: "2025-08-15", invoicePrefix: "INV-2025-07"},
+    {periodStart: "2025-08-01", periodEnd: "2025-08-31", paymentDue: "2025-09-15", invoicePrefix: "INV-2025-08"},
+    {periodStart: "2025-09-01", periodEnd: "2025-09-30", paymentDue: "2025-10-15", invoicePrefix: "INV-2025-09"},
+    {periodStart: "2025-10-01", periodEnd: "2025-10-31", paymentDue: "2025-11-15", invoicePrefix: "INV-2025-10"},
 ]
 
 export interface CompanyDetails {

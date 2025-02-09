@@ -1,10 +1,7 @@
 import {nanoid} from "nanoid";
-import {Image} from "./asset";
 
 export const nanoid_8 = () => nanoid(8)
 export const nanoid_12 = () => nanoid(12)
-
-export const EMPTY_STRING = ""
 
 export const supportedLanguages = ["pl-PL", "en-GB", "es-ES"] as const
 
@@ -24,15 +21,15 @@ export interface Pagination {
     nextPageKey?: string
 }
 
-export interface PaginatedResults {
-    items: EntityStructure[],
+export interface PaginatedResults<T> {
+    items: T[],
     count: number,
     nextPageKey?: string | undefined
 }
 
 export type EntityStructure = { [key: string]: any; }
 
-export interface Article {
-    markup: string,
-    images: Image[],
+export type MutationResponse = {
+    id: string,
+    executionArn?: string
 }

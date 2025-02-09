@@ -2,12 +2,12 @@ import {z} from "zod";
 import {supportedLanguages, supportedVoices} from "../model/common";
 import {AudioDto, ImageDto} from "./common";
 
-export const updateInstitutionSchema = z.object({
+export const upsertInstitutionSchema = z.object({
     referenceName: z.string().min(1).max(200),
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
-        name: z.string().min(1).max(200),
-        department: z.string().min(1).max(200).optional(),
+        title: z.string().min(1).max(200),
+        subtitle: z.string().min(1).max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),
@@ -20,15 +20,15 @@ export const updateInstitutionSchema = z.object({
     }))
 })
 
-export type UpdateInstitutionDto = z.infer<typeof updateInstitutionSchema>;
+export type UpsertInstitutionRequest = z.infer<typeof upsertInstitutionSchema>;
 
 export interface InstitutionDto {
     id: string,
     referenceName?: string,
     langOptions: {
         lang: string,
-        name: string,
-        department?: string,
+        title: string,
+        subtitle?: string,
         article?: string,
         audio?: AudioDto
     }[],

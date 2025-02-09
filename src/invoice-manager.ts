@@ -8,7 +8,9 @@ import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import {nanoId_12, uuidId} from "./schema/validation";
 import cors from "@middy/http-cors";
 import {z} from "zod";
-import {invoicePaymentStatus} from "./schema/invoice";
+import {InvoiceDetailsDto, InvoiceDto, invoicePaymentStatus} from "./schema/invoice";
+import {Invoice} from "./model/invoice";
+import {PaginatedDtoResults} from "./schema/common";
 
 
 const issueInvoices = async (event: any) => {
@@ -44,8 +46,13 @@ const invoicesGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
             nextPageKey: event.queryStringParameters?.["next-page-key"]
         }
 
-        const paginatedResults = await invoiceService.getInvoicesForCustomer(customerId, pagination, filters)
-        return responseFormatter(200, paginatedResults)
+        const invoicesPaginated = await invoiceService.getInvoicesForCustomer(customerId, pagination, filters)
+        const response: PaginatedDtoResults = {
+            ...invoicesPaginated,
+            items: invoicesPaginated.items.map(invoice => mapToInvoiceDto(invoice))
+        }
+
+        return responseFormatter(200, response)
     } catch (err) {
         return restHandleError(err);
     }
@@ -62,7 +69,9 @@ const invoiceGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
         const invoiceId = nanoId_12.parse(event.pathParameters?.["id"])
 
         const invoiceDetails = await invoiceService.getInvoiceForCustomer(customerId, invoiceId)
-        return responseFormatter(200, invoiceDetails)
+        const invoiceDetailsDto = mapToInvoiceDetailsDto(invoiceDetails)
+
+        return responseFormatter(200, invoiceDetailsDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -71,3 +80,30 @@ const invoiceGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyR
 export const invoiceGetHandler = middy(invoiceGet);
 invoiceGetHandler
     .use(cors())
+
+
+const mapToInvoiceDto = (invoice: Invoice): InvoiceDto => {
+    return {
+        invoiceId: invoice.invoiceId,
+        invoiceBusinessId: invoice.invoiceBusinessId,
+        periodStart: invoice.periodStart,
+        periodEnd: invoice.periodEnd,
+        paymentDue: invoice.paymentDue,
+        amount: invoice.amount,
+        status: invoice.status
+    }
+}
+
+const mapToInvoiceDetailsDto = (invoice: Invoice): InvoiceDetailsDto => {
+    return {
+        ...mapToInvoiceDto(invoice),
+        issuedAt: invoice.issuedAt,
+        soldAt: invoice.soldAt,
+        invoiceItems: invoice.invoiceItems.map(item => ({
+            plan: item.plan,
+            activeFrom: item.activeFrom,
+            activeTo: item.activeTo,
+            amount: item.amount
+        }))
+    }
+}

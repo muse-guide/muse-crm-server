@@ -7,7 +7,7 @@ import {nanoid_12, PaginatedResults, Pagination, SubscriptionPlanType} from "../
 import {customerService} from "./customer";
 import {getDateString, roundToPrecision} from "./common";
 import {InvoicePeriod} from "../model/configuration";
-import {InvoiceDetailsDto, InvoiceDto, invoicePaymentStatus} from "../schema/invoice";
+import {invoicePaymentStatus} from "../schema/invoice";
 
 const createInvoices = async (invoicePeriod: InvoicePeriod): Promise<Invoice[]> => {
     const subscriptionsPerCustomer = await getActiveSubscriptionsPerCustomerFor(invoicePeriod)
@@ -125,7 +125,7 @@ export interface InvoiceFilters {
     paymentStatus: typeof invoicePaymentStatus[number],
 }
 
-const getInvoicesForCustomer = async (customerId: string, pagination: Pagination, filters: InvoiceFilters): Promise<PaginatedResults> => {
+const getInvoicesForCustomer = async (customerId: string, pagination: Pagination, filters: InvoiceFilters): Promise<PaginatedResults<Invoice>> => {
     const {pageSize, nextPageKey} = pagination
 
     const {paymentStatus} = filters
@@ -134,7 +134,7 @@ const getInvoicesForCustomer = async (customerId: string, pagination: Pagination
         .byCustomerId({
             customerId: customerId
         })
-        .where(({ status }, { eq, ne, exists }) => {
+        .where(({status}, {eq, ne, exists}) => {
             let expr
             if (paymentStatus === "ALL") expr = exists(status)
             else if (paymentStatus === "PAID") expr = eq(status, "PAID")
@@ -149,13 +149,13 @@ const getInvoicesForCustomer = async (customerId: string, pagination: Pagination
         })
 
     return {
-        items: response.data.map(mapInvoiceToDto),
+        items: response.data,
         count: response.data.length,
         nextPageKey: response.cursor ?? undefined
     }
 }
 
-const getInvoiceForCustomer = async (customerId: string, invoiceId: string): Promise<InvoiceDetailsDto> => {
+const getInvoiceForCustomer = async (customerId: string, invoiceId: string): Promise<Invoice> => {
     const {data: invoice} = await InvoiceDao
         .get({
             invoiceId: invoiceId
@@ -166,29 +166,7 @@ const getInvoiceForCustomer = async (customerId: string, invoiceId: string): Pro
         throw new NotFoundException("Invoice does not exist.")
     }
 
-    return {
-        ...mapInvoiceToDto(invoice),
-        issuedAt: invoice.issuedAt,
-        soldAt: invoice.soldAt,
-        invoiceItems: invoice.invoiceItems.map(item => ({
-            plan: item.plan,
-            activeFrom: item.activeFrom,
-            activeTo: item.activeTo,
-            amount: item.amount
-        }))
-    }
-}
-
-const mapInvoiceToDto = (invoice: Invoice): InvoiceDto => {
-    return {
-        invoiceId: invoice.invoiceId,
-        invoiceBusinessId: invoice.invoiceBusinessId,
-        periodStart: invoice.periodStart,
-        periodEnd: invoice.periodEnd,
-        paymentDue: invoice.paymentDue,
-        amount: invoice.amount,
-        status: invoice.status
-    }
+    return invoice
 }
 
 export const invoiceService = {

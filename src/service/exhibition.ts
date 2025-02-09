@@ -1,28 +1,26 @@
 import {NotFoundException} from "../common/exceptions";
 import {Exhibition, ExhibitionDao} from "../model/exhibition";
-import {nanoid_8, PaginatedResults, Pagination} from "../model/common";
-import {CreateExhibitionDto, ExhibitionDto, UpdateExhibitionDto} from "../schema/exhibition";
+import {MutationResponse, nanoid_8, PaginatedResults, Pagination} from "../model/common";
+import {CreateExhibitionRequest, UpdateExhibitionRequest} from "../schema/exhibition";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
-import {MutationResponseDto} from "../schema/common";
 import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
 import {articleService} from "./article";
-import {Exhibit} from "../model/exhibit";
+import {institutionService} from "./institution";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
 const updateExhibitionStepFunctionArn = process.env.UPDATE_EXHIBITION_STEP_FUNCTION_ARN
 
-const createExhibition = async (customerId: string, createExhibition: CreateExhibitionDto): Promise<MutationResponseDto> => {
+const createExhibition = async (customerId: string, createExhibition: CreateExhibitionRequest): Promise<MutationResponse> => {
     const exhibitionId = nanoid_8()
 
     const exhibition: Exhibition = {
         id: exhibitionId,
         customerId: customerId,
-        institutionId: createExhibition.institutionId,
         includeInstitutionInfo: createExhibition.includeInstitutionInfo,
         referenceName: createExhibition.referenceName,
         langOptions: createExhibition.langOptions.map(lang => ({
@@ -34,9 +32,13 @@ const createExhibition = async (customerId: string, createExhibition: CreateExhi
     }
 
     await customerService.authorizeResourceCreation(customerId, exhibition)
+    const institution = await institutionService.findInstitutionForCustomer(customerId)
 
     const {data: exhibitionCreated} = await ExhibitionDao
-        .create(exhibition)
+        .create({
+            ...exhibition,
+            institutionId: institution?.id
+        })
         .go()
 
     const {audios, images, qrCode} = prepareAssetsForCreation(exhibitionCreated);
@@ -68,77 +70,8 @@ const createExhibition = async (customerId: string, createExhibition: CreateExhi
     }
 }
 
-const getExhibition = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
-    const {data: exhibition} = await ExhibitionDao
-        .get({
-            id: exhibitionId
-        })
-        .go()
-
-    if (!exhibition || customerId !== exhibition.customerId) {
-        throw new NotFoundException("Exhibition does not exist.")
-    }
-    return exhibition
-}
-
-const getExhibitionForCustomer = async (exhibitionId: string, customerId: string): Promise<ExhibitionDto> => {
-    const exhibition = await getExhibition(exhibitionId, customerId)
-    const exhibitionWithImagesPresigned = await articleService.prepareArticleImages(exhibition) as Exhibition
-    return mapToExhibitionDto(exhibitionWithImagesPresigned)
-}
-
-export interface ExhibitionsFilter {
-    referenceNameLike?: string
-}
-
-const searchExhibitionsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults> => {
-    const {pageSize, nextPageKey} = pagination
-    const response = await ExhibitionDao
-        .query
-        .byCustomer({
-            customerId: customerId
-        })
-        .where(
-            (attr, op) => {
-                if (filters?.referenceNameLike) {
-                    return op.contains(attr.referenceName, filters.referenceNameLike)
-                }
-                return op.exists(attr.customerId)
-            }
-        )
-        .go({
-            cursor: nextPageKey,
-            limit: pageSize,
-            pages: "all"
-        })
-
-    return {
-        items: response.data.map(mapToExhibitionDto),
-        count: response.data.length,
-        nextPageKey: response.cursor ?? undefined
-    }
-}
-
-const getAllExhibitionsForCustomer = async (customerId: string): Promise<PaginatedResults> => {
-    const response = await ExhibitionDao
-        .query
-        .byCustomer({
-            customerId: customerId
-        })
-        .go({
-            pages: "all"
-        })
-
-    return {
-        items: response.data.map(mapToExhibitionDto),
-        count: response.data.length,
-        nextPageKey: response.cursor ?? undefined
-    }
-}
-
-const updateExhibition = async (exhibitionId: string, customerId: string, updateExhibition: UpdateExhibitionDto): Promise<MutationResponseDto> => {
-    const exhibition = await getExhibition(exhibitionId, customerId)
-    // TODO add audio input validation here
+const updateExhibition = async (exhibitionId: string, customerId: string, updateExhibition: UpdateExhibitionRequest): Promise<MutationResponse> => {
+    const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
 
     await customerService.authorizeResourceUpdate(customerId, {...exhibition, langOptions: updateExhibition.langOptions})
 
@@ -146,7 +79,6 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
         .patch({
             id: exhibitionId
         }).set({
-            institutionId: exhibition.institutionId,
             referenceName: updateExhibition.referenceName,
             includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
             langOptions: updateExhibition.langOptions.map(lang => ({
@@ -193,8 +125,8 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
     }
 }
 
-const deleteExhibition = async (exhibitionId: string, customerId: string): Promise<MutationResponseDto> => {
-    const exhibition = await getExhibition(exhibitionId, customerId)
+const deleteExhibition = async (exhibitionId: string, customerId: string): Promise<MutationResponse> => {
+    const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
 
     const {privateAssetToDelete, publicAssetToDelete} = prepareAssetsForDeletion(exhibition)
 
@@ -232,42 +164,72 @@ const deleteExhibition = async (exhibitionId: string, customerId: string): Promi
     }
 }
 
-const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
-    return {
-        id: exhibition.id,
-        institutionId: exhibition.institutionId,
-        referenceName: exhibition.referenceName,
-        includeInstitutionInfo: exhibition.includeInstitutionInfo,
-        langOptions: exhibition.langOptions.map(opt => {
-            const audio = opt.audio ? {
-                key: `${exhibition.id}_${opt.lang}`,
-                markup: opt.audio.markup,
-                voice: opt.audio.voice,
-            } : undefined
+const updateInstitutionIdForAllCustomerExhibitions = async (customerId: string, institutionId: string | undefined): Promise<void> => {
+    // Query all exhibitions for the given customerId
+    const {data: exhibitions} = await ExhibitionDao.query.byCustomer({customerId}).go();
 
-            return {
-                lang: opt.lang,
-                title: opt.title,
-                subtitle: opt.subtitle,
-                article: opt.article,
-                audio: audio
+    // Update each exhibition with the new institutionId
+    for (const exhibition of exhibitions) {
+        await ExhibitionDao
+            .patch({id: exhibition.id})
+            .set({
+                institutionId: institutionId
+            })
+            .go();
+    }
+};
+
+
+const getExhibitionForCustomer = async (exhibitionId: string, customerId: string): Promise<Exhibition> => {
+    const {data: exhibition} = await ExhibitionDao
+        .get({
+            id: exhibitionId
+        })
+        .go()
+
+    if (!exhibition || customerId !== exhibition.customerId) {
+        throw new NotFoundException("Exhibition does not exist.")
+    }
+    return exhibition
+}
+
+export interface ExhibitionsFilter {
+    referenceNameLike?: string
+}
+
+const searchExhibitionsForCustomer = async (customerId: string, pagination: Pagination, filters?: ExhibitionsFilter): Promise<PaginatedResults<Exhibition>> => {
+    const {pageSize, nextPageKey} = pagination
+    const response = await ExhibitionDao
+        .query
+        .byCustomer({
+            customerId: customerId
+        })
+        .where(
+            (attr, op) => {
+                if (filters?.referenceNameLike) {
+                    return op.contains(attr.referenceName, filters.referenceNameLike)
+                }
+                return op.exists(attr.customerId)
             }
-        }),
-        images: exhibition.images.map(img => {
-            return {
-                id: img.id,
-                name: img.name
-            }
-        }),
-        status: exhibition.status
-    };
+        )
+        .go({
+            cursor: nextPageKey,
+            limit: pageSize,
+            pages: "all"
+        })
+
+    return {
+        items: response.data,
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
 }
 
 export const exhibitionService = {
     getExhibitionForCustomer: getExhibitionForCustomer,
     searchExhibitionsForCustomer: searchExhibitionsForCustomer,
-    getAllExhibitionsForCustomer: getAllExhibitionsForCustomer,
     createExhibition: createExhibition,
     deleteExhibition: deleteExhibition,
     updateExhibition: updateExhibition,
+    updateInstitutionIdForAllCustomerExhibitions: updateInstitutionIdForAllCustomerExhibitions
 };
