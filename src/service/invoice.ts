@@ -29,7 +29,7 @@ const createInvoices = async (invoicePeriod: InvoicePeriod): Promise<Invoice[]> 
 
 const createInvoiceForCustomer = async (customerId: string, subscriptions: Subscription[], invoicePeriod: InvoicePeriod, index: number): Promise<Invoice | undefined> => {
 
-    const customer = await customerService.getCustomerWithActiveSubscription(customerId)
+    const customer = await customerService.getCustomerDetails(customerId)
     if (customer.customer.status !== 'ACTIVE') return undefined
     if (!customer.customer.createdAt) throw new ConfigurationException(`Customer ${customerId} has no creation date`)
 

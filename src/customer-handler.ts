@@ -6,7 +6,8 @@ import {logger} from "./common/logger";
 import {uuidId} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import cors from "@middy/http-cors";
-import {updateCustomerDetailsSchema, updateSubscriptionSchema} from "./schema/customer";
+import {CustomerDto, updateCustomerDetailsSchema, updateSubscriptionSchema} from "./schema/customer";
+import {CustomerWithSubscription} from "./model/customer";
 
 const customerCreate = async (event: PostConfirmationTriggerEvent) => {
     const {userAttributes} = event.request
@@ -33,7 +34,9 @@ const customerGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
 
         logger.info(`Getting customer with id: ${customerId}`)
         const customer = await customerService.getCustomerDetails(customerId)
-        return responseFormatter(200, customer)
+        const customerDto = mapToCustomerDto(customer)
+
+        return responseFormatter(200, customerDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -51,7 +54,9 @@ const customerDetailsUpdate = async (event: APIGatewayProxyEvent): Promise<APIGa
 
         logger.info(`Updating details of customer with id: ${customerId}`)
         const customer = await customerService.updateCustomerDetails(customerId, request)
-        return responseFormatter(200, customer)
+        const customerDto = mapToCustomerDto(customer)
+
+        return responseFormatter(200, customerDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -70,8 +75,10 @@ const subscriptionUpdate = async (event: APIGatewayProxyEvent): Promise<APIGatew
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
         logger.info(`Changing subscription for customer with id: ${customerId}. New plan: ${request.newPlan}`)
-        const response = await customerService.changeSubscription(customerId, request.newPlan)
-        return responseFormatter(200, response)
+        const customer = await customerService.changeSubscription(customerId, request.newPlan)
+        const customerDto = mapToCustomerDto(customer)
+
+        return responseFormatter(200, customerDto)
     } catch (err) {
         return restHandleError(err);
     }
@@ -82,3 +89,22 @@ subscriptionUpdateHandler
     .use(httpJsonBodyParser({
         disableContentTypeError: true
     }))
+
+const mapToCustomerDto = (customer: CustomerWithSubscription): CustomerDto => {
+    return {
+        customerId: customer.customer.customerId,
+        email: customer.customer.email,
+        status: customer.customer.status,
+        fullName: customer.customer.fullName,
+        taxNumber: customer.customer.taxNumber,
+        telephoneNumber: customer.customer.telephoneNumber,
+        subscription: {
+            subscriptionId: customer.subscription.subscriptionId,
+            plan: customer.subscription.plan,
+            status: customer.subscription.status,
+            startedAt: customer.subscription.startedAt,
+            expiredAt: customer.subscription.expiredAt,
+        },
+        address: customer.customer.address
+    }
+}

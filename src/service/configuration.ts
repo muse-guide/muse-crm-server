@@ -1,5 +1,4 @@
-import {configuration, InvoicePeriod, SubscriptionPlan} from "../model/configuration";
-import {ApplicationConfigurationDto} from "../schema/configuration";
+import {ApplicationConfiguration, configuration, InvoicePeriod, SubscriptionPlan} from "../model/configuration";
 import {ConfigurationException} from "../common/exceptions";
 import {SubscriptionPlanType} from "../model/common";
 import {getDateString} from "./common";
@@ -29,24 +28,8 @@ const getLastInvoicedPeriod = (): InvoicePeriod => {
     return currentPeriod
 }
 
-const getApplicationConfiguration = (): ApplicationConfigurationDto => {
-    const lastInvoicedPeriod = getLastInvoicedPeriod()
-    return {
-        subscriptionPlans: configuration.subscriptionPlans.map(plan => {
-            return {
-                type: plan.name,
-                price: plan.price,
-                maxExhibitions: plan.maxExhibitions,
-                maxExhibits: plan.maxExhibits,
-                maxLanguages: plan.maxLanguages,
-            }
-        }),
-        lastInvoicedPeriod: {
-            periodStart: lastInvoicedPeriod.periodStart,
-            periodEnd: lastInvoicedPeriod.periodEnd,
-        },
-        companyDetails: configuration.companyDetails
-    }
+const getApplicationConfiguration = (): ApplicationConfiguration => {
+    return configuration
 }
 
 export const configurationService = {
