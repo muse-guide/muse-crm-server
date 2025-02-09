@@ -18,8 +18,9 @@ const exhibitionPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGat
         const exhibitionId = nanoId.parse(event.pathParameters?.["id"])
         const lang = required.parse(event.queryStringParameters?.["lang"])
         const exhibition = await exhibitPreviewService.getExhibitionPreview(exhibitionId, lang)
+        const exhibitionDto = mapToExhibitionPreviewDto(exhibition)
 
-        return responseFormatter(200, exhibition)
+        return responseFormatter(200, exhibitionDto)
     } catch (err) {
         return restHandleError(err);
     }
