@@ -152,19 +152,8 @@ const findInstitutionForCustomer = async (customerId: string): Promise<Instituti
     return institutions[0]
 }
 
-const getInstitutionForCustomer = async (customerId: string): Promise<Institution> => {
-    const institution = await findInstitutionForCustomer(customerId)
-
-    if (!institution) {
-        throw new NotFoundException("Institution does not exist.")
-    }
-
-    return institution
-}
-
 export const institutionService = {
     createInstitution: createInstitution,
     updateInstitution: updateInstitution,
-    getInstitutionForCustomer: getInstitutionForCustomer,
     findInstitutionForCustomer: findInstitutionForCustomer
 };

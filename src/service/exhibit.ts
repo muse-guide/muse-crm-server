@@ -132,6 +132,7 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
             id: exhibitId
         })
         .set({
+            exhibitionId: exhibit.exhibitionId,
             referenceName: updateExhibit.referenceName,
             number: addLeadingZeros(updateExhibit.number),
             langOptions: updateExhibit.langOptions.map(lang => ({

@@ -130,3 +130,14 @@ export const InstitutionDao = new Entity(
 );
 
 export type Institution = EntityItem<typeof InstitutionDao>
+
+export interface InstitutionPreview {
+    id: string;
+    lang: string;
+    langOptions: string[];
+    title: string;
+    subtitle?: string;
+    article?: string;
+    imageUrls: string[];
+    audio?: string;
+}

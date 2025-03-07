@@ -10,6 +10,7 @@ import {z} from "zod";
 import {articleService} from "./service/article";
 import {Exhibition} from "./model/exhibition";
 import {PaginatedDtoResults} from "./schema/common";
+import {logger} from "./common/logger";
 
 /**
  * Creates a new exhibition
@@ -74,9 +75,7 @@ exhibitionGetHandler
  */
 const exhibitionGetAll = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-
         const filters: ExhibitionsFilter = {
             referenceNameLike: event.queryStringParameters?.["reference-name-like"]
         }

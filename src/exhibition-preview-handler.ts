@@ -3,7 +3,7 @@ import {nanoId, required} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
-import {exhibitPreviewService} from "./service/exhibition-preview";
+import {exhibitionPreviewService} from "./service/exhibition-preview";
 import {ExhibitionPreview} from "./model/exhibition";
 import {ExhibitionPreviewDto} from "./schema/exhibition-preview";
 
@@ -17,7 +17,7 @@ const exhibitionPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGat
     try {
         const exhibitionId = nanoId.parse(event.pathParameters?.["id"])
         const lang = required.parse(event.queryStringParameters?.["lang"])
-        const exhibition = await exhibitPreviewService.getExhibitionPreview(exhibitionId, lang)
+        const exhibition = await exhibitionPreviewService.getExhibitionPreview(exhibitionId, lang)
         const exhibitionDto = mapToExhibitionPreviewDto(exhibition)
 
         return responseFormatter(200, exhibitionDto)

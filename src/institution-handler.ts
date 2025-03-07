@@ -49,7 +49,9 @@ institutionCreateHandler
 const institutionGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-        const institution = await institutionService.getInstitutionForCustomer(customerId)
+        const institution = await institutionService.findInstitutionForCustomer(customerId)
+        if (!institution) return responseFormatter(200, undefined)
+
         const institutionWithImagesPresigned: Institution = await articleService.prepareArticleImages(institution) as Institution
         const institutionDto: InstitutionDto = mapToInstitutionDto(institutionWithImagesPresigned)
 

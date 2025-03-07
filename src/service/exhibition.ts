@@ -10,6 +10,7 @@ import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
 import {articleService} from "./article";
 import {institutionService} from "./institution";
+import {logger} from "../common/logger";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
@@ -176,6 +177,25 @@ const updateInstitutionIdForAllCustomerExhibitions = async (customerId: string, 
                 institutionId: institutionId
             })
             .go();
+
+
+        const mutation: ExposableMutation = {
+            entityId: exhibition.id,
+            entity: exhibition,
+            action: "UPDATE",
+            actor: {
+                customerId: exhibition.customerId,
+            },
+            asset: {},
+        }
+
+        // Trigger exhibition update step function for each exhibition to invalidate cdn cache
+        await sfnClient.send(
+            new StartExecutionCommand({
+                stateMachineArn: updateExhibitionStepFunctionArn,
+                input: JSON.stringify(mutation)
+            }),
+        );
     }
 };
 

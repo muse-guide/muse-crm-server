@@ -35,6 +35,6 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
     }
 }
 
-export const exhibitPreviewService = {
+export const exhibitionPreviewService = {
     getExhibitionPreview: getExhibitionPreview
 };
