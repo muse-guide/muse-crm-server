@@ -179,6 +179,19 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
     }
 }
 
+const deleteAllExhibitForExhibition = async (exhibitionId: string, customerId: string): Promise<void> => {
+    const {data: exhibits} = await ExhibitDao
+        .query
+        .byExhibition({
+            exhibitionId: exhibitionId
+        })
+        .go()
+
+    for (const exhibit of exhibits) {
+        await deleteExhibit(exhibit.id, customerId)
+    }
+}
+
 const deleteExhibit = async (exhibitId: string, customerId: string): Promise<MutationResponse> => {
     const exhibit = await getExhibitForCustomer(exhibitId, customerId)
 
@@ -224,4 +237,5 @@ export const exhibitService = {
     searchExhibitsForCustomer: searchExhibitsForCustomer,
     deleteExhibit: deleteExhibit,
     updateExhibit: updateExhibit,
+    deleteAllExhibitForExhibition: deleteAllExhibitForExhibition
 };

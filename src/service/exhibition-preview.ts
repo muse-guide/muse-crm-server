@@ -1,8 +1,34 @@
 import {NotFoundException} from "../common/exceptions";
-import {ExhibitionDao, ExhibitionPreview} from "../model/exhibition";
+import {Exhibition, ExhibitionDao, ExhibitionPreview} from "../model/exhibition";
 import {articleService} from "./article";
+import {PaginatedResults, Pagination} from "../model/common";
 
 const appDomain = process.env.APP_DOMAIN
+
+export interface ExhibitionsFilter {
+    institutionId: string;
+    lang: string;
+}
+
+const getExhibitionPreviewsFor = async (pagination: Pagination, filters: ExhibitionsFilter): Promise<PaginatedResults<ExhibitionPreview>> => {
+    const {pageSize, nextPageKey} = pagination
+    const response = await ExhibitionDao
+        .query
+        .byInstitution({
+            institutionId: filters.institutionId,
+        })
+        .go({
+            cursor: nextPageKey,
+            count: pageSize,
+            limit: 100 // TODO: remove this before production
+        })
+
+    return {
+        items: response.data.map(exhibition => prepareExhibitionPreview(filters.lang, exhibition)),
+        count: response.data.length,
+        nextPageKey: response.cursor ?? undefined
+    }
+}
 
 const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise<ExhibitionPreview> => {
     const {data: exhibition} = await ExhibitionDao
@@ -11,6 +37,10 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
         })
         .go()
 
+    return prepareExhibitionPreview(lang, exhibition)
+}
+
+const prepareExhibitionPreview = (lang: string, exhibition: Exhibition | null): ExhibitionPreview => {
     if (!exhibition || exhibition.langOptions.length < 1) {
         throw new NotFoundException("Exhibition does not exist.")
     }
@@ -36,5 +66,6 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 }
 
 export const exhibitionPreviewService = {
-    getExhibitionPreview: getExhibitionPreview
+    getExhibitionPreview: getExhibitionPreview,
+    getExhibitionPreviewsFor: getExhibitionPreviewsFor
 };

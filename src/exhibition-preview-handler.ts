@@ -6,6 +6,9 @@ import cors from "@middy/http-cors";
 import {exhibitionPreviewService} from "./service/exhibition-preview";
 import {ExhibitionPreview} from "./model/exhibition";
 import {ExhibitionPreviewDto} from "./schema/exhibition-preview";
+import {logger} from "./common/logger";
+import {z} from "zod";
+import {PaginatedDtoResults} from "./schema/common";
 
 /**
  * Gets an exhibition by ID for app
@@ -29,6 +32,42 @@ const exhibitionPreviewGet = async (event: APIGatewayProxyEvent): Promise<APIGat
 export const exhibitionPreviewGetHandler = middy(exhibitionPreviewGet);
 exhibitionPreviewGetHandler
     .use(cors())
+
+
+/**
+ * Gets an exhibitions by institution id for app
+ *
+ * @param event - The API Gateway proxy event
+ * @returns The API Gateway proxy result with exhibition data
+ */
+const exhibitionPreviewsGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        logger.info("Getting exhibition previews")
+        const institutionId = nanoId.parse(event.pathParameters?.["id"])
+        const lang = required.parse(event.queryStringParameters?.["lang"])
+
+        const filters = {institutionId, lang}
+        const pagination = {
+            pageSize: z.coerce.number().optional().parse(event.queryStringParameters?.["page-size"]) ?? 10,
+            nextPageKey: event.queryStringParameters?.["next-page-key"]
+        }
+
+        const exhibitionsPaginated = await exhibitionPreviewService.getExhibitionPreviewsFor(pagination, filters)
+        const response: PaginatedDtoResults = {
+            ...exhibitionsPaginated,
+            items: exhibitionsPaginated.items.map(exhibition => mapToExhibitionPreviewDto(exhibition))
+        }
+
+        return responseFormatter(200, response)
+    } catch (err) {
+        return restHandleError(err);
+    }
+};
+
+export const exhibitionPreviewsGetHandler = middy(exhibitionPreviewsGet);
+exhibitionPreviewsGetHandler
+    .use(cors())
+
 
 const mapToExhibitionPreviewDto = (exhibition: ExhibitionPreview): ExhibitionPreviewDto => {
     return {

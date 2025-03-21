@@ -1,4 +1,4 @@
-import {SubscriptionPlanType} from "./common";
+import {SubscriptionPeriod, SubscriptionPlanType} from "./common";
 
 const envToNumber = (env: string | undefined, defaultValue: number) => {
     if (env === undefined) {
@@ -14,6 +14,8 @@ const subscriptionPlans: SubscriptionPlan[] = [
         maxExhibitions: envToNumber(process.env.SUB_FREE_MAX_EXHIBITIONS, 1),
         maxExhibits: envToNumber(process.env.SUB_FREE_MAX_EXHIBITS, 10),
         maxLanguages: envToNumber(process.env.SUB_FREE_MAX_LANGUAGES, 1),
+        // tokenCount: envToNumber(process.env.SUB_FREE_TOKEN_COUNT, 5000),
+
     },
     {
         name: "BASIC",
@@ -21,6 +23,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
         maxExhibitions: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITIONS, 2),
         maxExhibits: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITS, 20),
         maxLanguages: envToNumber(process.env.SUB_BASIC_MAX_LANGUAGES, 2),
+        // tokenCount: envToNumber(process.env.SUB_BASIC_TOKEN_COUNT, 10000),
     },
     {
         name: "PREMIUM",
@@ -28,6 +31,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
         maxExhibitions: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITIONS, 5),
         maxExhibits: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITS, 100),
         maxLanguages: envToNumber(process.env.SUB_PREMIUM_MAX_LANGUAGES, 5),
+        // tokenCount: envToNumber(process.env.SUB_PREMIUM_TOKEN_COUNT, 20000),
     }
 ];
 
@@ -37,6 +41,7 @@ export interface SubscriptionPlan {
     maxExhibitions: number,
     maxExhibits: number,
     maxLanguages: number,
+    // tokenCount: number
 }
 
 export interface InvoicePeriod {

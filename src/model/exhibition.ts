@@ -132,6 +132,19 @@ export const ExhibitionDao = new Entity(
                     casing: "none",
                 },
             },
+            byInstitution: {
+                index: "gsi2pk-gsi2sk-index",
+                pk: {
+                    field: "gsi2pk",
+                    composite: ["institutionId"],
+                    casing: "none",
+                },
+                sk: {
+                    field: "gsi2sk",
+                    composite: ["id"],
+                    casing: "none",
+                },
+            },
         },
     },
     {client: dynamoClient, table},

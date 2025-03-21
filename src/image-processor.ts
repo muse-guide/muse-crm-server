@@ -35,8 +35,8 @@ const imageProcessor = async (images: ImageAsset[]) => {
                         const mobileOptimizedImage = await Jimp.read(Buffer.from(tmpImage),)
                             .then(image => {
                                 return image
-                                    .contain(400, Jimp.AUTO, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
-                                    .quality(80)
+                                    .contain(1024, Jimp.AUTO, Jimp.HORIZONTAL_ALIGN_CENTER | Jimp.VERTICAL_ALIGN_MIDDLE)
+                                    .quality(90)
                                     .getBufferAsync(Jimp.MIME_JPEG)
                             })
 

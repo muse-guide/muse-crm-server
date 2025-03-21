@@ -35,7 +35,7 @@ const getExhibitPreviewsFor = async (pagination: Pagination, filters: ExhibitsFi
         .go({
             cursor: nextPageKey,
             count: pageSize,
-            limit: 100
+            limit: 100 // TODO: remove this before production
         })
 
     return {

@@ -11,6 +11,7 @@ import {customerService} from "./customer";
 import {articleService} from "./article";
 import {institutionService} from "./institution";
 import {logger} from "../common/logger";
+import {exhibitService} from "./exhibit";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
 const deleteExhibitionStepFunctionArn = process.env.DELETE_EXHIBITION_STEP_FUNCTION_ARN
@@ -137,6 +138,9 @@ const deleteExhibition = async (exhibitionId: string, customerId: string): Promi
         })
         .go()
 
+    // Delete all exhibits for the exhibition
+    await exhibitService.deleteAllExhibitForExhibition(exhibitionId, customerId)
+
     const mutation: ExposableMutation = {
         entityId: exhibition.id,
         entity: exhibition,
@@ -234,7 +238,7 @@ const searchExhibitionsForCustomer = async (customerId: string, pagination: Pagi
         )
         .go({
             cursor: nextPageKey,
-            limit: pageSize,
+            count: pageSize,
             pages: "all"
         })
 
