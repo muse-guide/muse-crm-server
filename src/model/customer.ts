@@ -143,6 +143,10 @@ export const SubscriptionDao = new Entity(
                 type: "string",
                 required: false,
             },
+            tokenCount: {
+                type: "number",
+                required: true,
+            },
             createdAt: {
                 type: "number",
                 set: _ => {
@@ -194,11 +198,6 @@ export type Subscription = EntityItem<typeof SubscriptionDao>
 export type CustomerWithSubscription = {
     customer: Customer,
     subscription: Subscription
-}
-
-export type CustomerWithSubscriptions = {
-    customer: Customer,
-    subscriptions: Subscription[]
 }
 
 export type CustomerResources = {

@@ -81,6 +81,11 @@ const getExhibitForCustomer = async (exhibitId: string, customerId: string): Pro
     if (!exhibit || customerId !== exhibit.customerId) {
         throw new NotFoundException("Exhibit does not exist.")
     }
+
+    if (exhibit.status !== "ACTIVE") {
+        throw new NotFoundException("Exhibit is not active.")
+    }
+
     return exhibit
 }
 
@@ -185,7 +190,9 @@ const deleteAllExhibitForExhibition = async (exhibitionId: string, customerId: s
         .byExhibition({
             exhibitionId: exhibitionId
         })
-        .go()
+        .go({
+            pages: "all"
+        })
 
     for (const exhibit of exhibits) {
         await deleteExhibit(exhibit.id, customerId)

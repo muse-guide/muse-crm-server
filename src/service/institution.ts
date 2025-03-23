@@ -7,7 +7,7 @@ import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
 import {UpsertInstitutionRequest} from "../schema/institution";
 import {Institution, InstitutionDao} from "../model/institution";
-import {ConfigurationException, NotFoundException} from "../common/exceptions";
+import {ConfigurationException, DataConflictException, NotFoundException} from "../common/exceptions";
 import {customerService} from "./customer";
 import {exhibitionService} from "./exhibition";
 
@@ -130,6 +130,11 @@ const getInstitutionInternal = async (institutionId: string, customerId: string)
     if (!institution || customerId !== institution.customerId) {
         throw new NotFoundException("Institution does not exist.")
     }
+
+    if (institution.status !== "ACTIVE") {
+        throw new DataConflictException("Institution is not active.")
+    }
+
     return institution
 }
 

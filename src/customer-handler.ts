@@ -33,7 +33,7 @@ const customerGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxy
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
 
         logger.info(`Getting customer with id: ${customerId}`)
-        const customer = await customerService.getCustomerDetails(customerId)
+        const customer = await customerService.getCustomerWithSubscription(customerId)
         const customerDto = mapToCustomerDto(customer)
 
         return responseFormatter(200, customerDto)

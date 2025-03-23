@@ -10,12 +10,12 @@ export const supportedVoices = ["FEMALE_1", "MALE_1"] as const
 export const resourceStatus = ["PROCESSING", "ACTIVE", "DEACTIVATED", "ERROR"] as const
 
 export const identityStatus = ["PROCESSING", "ACTIVE", "PAYMENT_MISSING", "DEACTIVATED", "ERROR"] as const
-export const subscriptionStatus = ["PROCESSING", "ACTIVE", "PAYMENT_MISSING", "DEACTIVATED", "ERROR"] as const
+export const subscriptionStatus = ["PROCESSING", "ACTIVE", "AWAITING_PAYMENT", "DEACTIVATED", "ERROR"] as const
 export const invoiceStatus = ["ISSUED", "PAID", "OVERDUE"] as const
 
 export const subscriptionPlanType = ["FREE", "BASIC", "PREMIUM"] as const
 export type SubscriptionPlanType = "FREE" | "BASIC" | "PREMIUM"
-export type SubscriptionPeriod = "MONTHLY" | "ANNUAL"
+export type SubscriptionPeriod = "MONTHLY" | "ANNUAL" | "LIFETIME"
 
 export interface Pagination {
     pageSize: number,

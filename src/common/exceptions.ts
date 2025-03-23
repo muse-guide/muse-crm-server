@@ -17,6 +17,12 @@ export class BadRequestException extends BaseException {
     }
 }
 
+export class DataConflictException extends BaseException {
+    constructor(message: string) {
+        super(409, message);
+    }
+}
+
 export class NotFoundException extends BaseException {
     constructor(message: string) {
         super(400, message);

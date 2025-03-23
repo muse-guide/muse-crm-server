@@ -1,4 +1,4 @@
-import {CustomerDao, CustomerResources, CustomerWithSubscription, CustomerWithSubscriptions, Subscription, SubscriptionDao} from "../model/customer";
+import {CustomerDao, CustomerResources, CustomerWithSubscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
 import {Exposable, getCurrentDate, isExhibit, isExhibition, isInstitution} from "./common";
 import {UpdateCustomerDetailsDto} from "../schema/customer";
@@ -11,10 +11,10 @@ import {configurationService} from "./configuration";
 import {logger} from "../common/logger";
 import {InstitutionDao} from "../model/institution";
 
-// Creates new Customer with Basic subscription
+// Creates new Customer with FREE subscription
 const createCustomer = async (customerId: string, email: string): Promise<CustomerWithSubscription> => {
     try {
-        return await getCustomerDetails(customerId)
+        return await getCustomerWithSubscription(customerId)
     } catch (e) {
         if (e instanceof CustomerException) {
             logger.info(`Customer ${customerId} not found. Creating new customer.`)
@@ -33,12 +33,15 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         })
         .go()
 
+    const freeSubscriptionConfiguration = configurationService.getSubscriptionPlan("FREE")
+
     const subscriptionResponsePromise = SubscriptionDao
         .create({
             subscriptionId: nanoid(),
             customerId: customerId,
-            plan: "FREE",
+            plan: freeSubscriptionConfiguration.name,
             status: 'ACTIVE',
+            tokenCount: freeSubscriptionConfiguration.tokenCount,
             startedAt: getCurrentDate(),
             expiredAt: undefined,
         })
@@ -60,6 +63,8 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
 }
 
 const updateCustomerDetails = async (customerId: string, updateCustomerDetails: UpdateCustomerDetailsDto): Promise<CustomerWithSubscription> => {
+    await getCustomerWithSubscription(customerId)
+
     const customerResponseItem = await CustomerDao
         .patch({
             customerId: customerId,
@@ -74,18 +79,17 @@ const updateCustomerDetails = async (customerId: string, updateCustomerDetails: 
             response: "all_new"
         })
 
-    return getCustomerDetails(customerId)
+    return getCustomerWithSubscription(customerId)
 }
 
 const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanType): Promise<CustomerWithSubscription> => {
-    const {customer, subscriptions} = await getCustomerWithSubscriptions(customerId)
-    const activeSubscription = getActiveSubscriptionFor(customerId, subscriptions)
+    const {customer, subscription} = await getCustomerWithSubscription(customerId)
 
-    await validateIfCanChangeSubscription(customerId, activeSubscription.plan, newPlan)
+    await validateIfCanChangeSubscription(customerId, subscription.plan, newPlan)
 
     const updatedSubscriptionPromise = SubscriptionDao
         .patch({
-            subscriptionId: activeSubscription.subscriptionId,
+            subscriptionId: subscription.subscriptionId,
         })
         .set({
             status: "DEACTIVATED",
@@ -96,12 +100,15 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
             response: "all_new"
         })
 
+    const newSubscriptionPlan = configurationService.getSubscriptionPlan(newPlan)
+
     const createSubscriptionPromise = SubscriptionDao
         .create({
             subscriptionId: nanoid(),
             customerId: customerId,
-            plan: newPlan,
-            status: 'ACTIVE',
+            plan: newSubscriptionPlan.name,
+            status: "AWAITING_PAYMENT",
+            tokenCount: newSubscriptionPlan.tokenCount,
             startedAt: getCurrentDate(),
             expiredAt: undefined,
         })
@@ -173,7 +180,7 @@ const getCustomerResources = async (customerId: string): Promise<CustomerResourc
     }
 }
 
-const getCustomerWithSubscriptions = async (customerId: string): Promise<CustomerWithSubscriptions> => {
+const getCustomerWithSubscription = async (customerId: string): Promise<CustomerWithSubscription> => {
     const CustomerSubscriptionsService = new Service({
         customer: CustomerDao,
         subscription: SubscriptionDao,
@@ -195,23 +202,10 @@ const getCustomerWithSubscriptions = async (customerId: string): Promise<Custome
         throw new CustomerException(`Customer with id ${customerId} not found, or configured incorrectly.`)
     }
 
-    return {
-        customer: customers[0],
-        subscriptions: subscriptions
+    if (customers[0].status !== "ACTIVE") {
+        throw new CustomerException(`Customer ${customerId} is not active. Customer status: ${customers[0].status}`)
     }
-}
 
-const getCustomerDetails = async (customerId: string): Promise<CustomerWithSubscription> => {
-    const {customer, subscriptions} = await getCustomerWithSubscriptions(customerId)
-    const activeSubscription = getActiveSubscriptionFor(customerId, subscriptions)
-
-    return {
-        customer: customer,
-        subscription: activeSubscription
-    }
-}
-
-const getActiveSubscriptionFor = (customerId: string, subscriptions: Subscription[]): Subscription => {
     const activeSubscriptions = subscriptions.filter(subscription => subscription.status === "ACTIVE")
 
     if (activeSubscriptions.length > 1) {
@@ -222,11 +216,14 @@ const getActiveSubscriptionFor = (customerId: string, subscriptions: Subscriptio
         throw new CustomerException(`Customer ${customerId} has no active subscription.`)
     }
 
-    return activeSubscriptions[0]
+    return {
+        customer: customers[0],
+        subscription: activeSubscriptions[0]
+    }
 }
 
 const authorizeResourceCreation = async (customerId: string, resource: Exposable): Promise<void> => {
-    const customerPromise = getCustomerDetails(customerId)
+    const customerPromise = getCustomerWithSubscription(customerId)
     const customerResourcesPromise = getCustomerResources(customerId)
     const [{customer, subscription}, customerResources] = await Promise.all([
         customerPromise,
@@ -256,12 +253,8 @@ const authorizeResourceCreation = async (customerId: string, resource: Exposable
 }
 
 const authorizeResourceUpdate = async (customerId: string, resource: Exposable): Promise<void> => {
-    const {customer, subscription} = await getCustomerDetails(customerId)
+    const {subscription} = await getCustomerWithSubscription(customerId)
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
-
-    if (customer.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} is not active. Customer status: ${customer.status}`, 403)
-    }
 
     if (resource.langOptions.length > subscriptionPlan.maxLanguages) {
         throw new CustomerException(`Customer ${customerId} has reached the maximum number of languages for resource allowed by the subscription ${subscription.plan}.`, 403)
@@ -271,7 +264,7 @@ const authorizeResourceUpdate = async (customerId: string, resource: Exposable):
 export const customerService = {
     // Public API methods
     createCustomer: createCustomer,
-    getCustomerDetails: getCustomerDetails,
+    getCustomerWithSubscription: getCustomerWithSubscription,
     updateCustomerDetails: updateCustomerDetails,
     changeSubscription: changeSubscription,
 

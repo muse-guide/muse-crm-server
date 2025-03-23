@@ -1,4 +1,4 @@
-import {NotFoundException} from "../common/exceptions";
+import {DataConflictException, NotFoundException} from "../common/exceptions";
 import {Exhibition, ExhibitionDao} from "../model/exhibition";
 import {MutationResponse, nanoid_8, PaginatedResults, Pagination} from "../model/common";
 import {CreateExhibitionRequest, UpdateExhibitionRequest} from "../schema/exhibition";
@@ -10,7 +10,6 @@ import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
 import {articleService} from "./article";
 import {institutionService} from "./institution";
-import {logger} from "../common/logger";
 import {exhibitService} from "./exhibit";
 
 const createExhibitionStepFunctionArn = process.env.CREATE_EXHIBITION_STEP_FUNCTION_ARN
@@ -171,14 +170,20 @@ const deleteExhibition = async (exhibitionId: string, customerId: string): Promi
 
 const updateInstitutionIdForAllCustomerExhibitions = async (customerId: string, institutionId: string | undefined): Promise<void> => {
     // Query all exhibitions for the given customerId
-    const {data: exhibitions} = await ExhibitionDao.query.byCustomer({customerId}).go();
+    const {data: exhibitions} = await ExhibitionDao
+        .query
+        .byCustomer({customerId}
+        ).go({
+            pages: "all"
+        });
 
     // Update each exhibition with the new institutionId
     for (const exhibition of exhibitions) {
         await ExhibitionDao
             .patch({id: exhibition.id})
             .set({
-                institutionId: institutionId
+                institutionId: institutionId,
+                status: "PROCESSING"
             })
             .go();
 
@@ -214,6 +219,11 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
     if (!exhibition || customerId !== exhibition.customerId) {
         throw new NotFoundException("Exhibition does not exist.")
     }
+
+    if (exhibition.status !== "ACTIVE") {
+        throw new DataConflictException("Exhibition is not active.")
+    }
+
     return exhibition
 }
 
