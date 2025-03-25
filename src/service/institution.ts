@@ -29,7 +29,12 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
         status: "PROCESSING",
     }
 
-    await customerService.authorizeResourceCreation(customerId, institution)
+    const {audios, images, qrCode} = prepareAssetsForCreation(institution);
+    const tokensUsed = audios
+        .map(audio => audio.billableTokens)
+        .reduce((acc, curr) => acc + curr, 0)
+
+    const {subscription} = await customerService.authorizeResourceCreationAndLock(customerId, institution, tokensUsed)
 
     const {data: institutionCreated} = await InstitutionDao
         .create(institution)
@@ -37,20 +42,22 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
 
     await exhibitionService.updateInstitutionIdForAllCustomerExhibitions(customerId, institutionCreated.id)
 
-    const {audios, images, qrCode} = prepareAssetsForCreation(institutionCreated);
-
     const mutation: ExposableMutation = {
         entityId: institutionCreated.id,
         entity: institutionCreated,
         action: "CREATE",
         actor: {
             customerId: institutionCreated.customerId,
+            subscriptionId: subscription?.subscriptionId
         },
         asset: {
             qrCode: qrCode,
             images: undefinedIfEmpty(images),
             audios: undefinedIfEmpty(audios)
         },
+        billing: {
+            tokensUsed: tokensUsed
+        }
     }
 
     const assetProcessingExecution = await sfnClient.send(
@@ -69,7 +76,12 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
 const updateInstitution = async (institutionId: string, customerId: string, request: UpsertInstitutionRequest): Promise<MutationResponse> => {
     const institution = await getInstitutionInternal(institutionId, customerId)
 
-    await customerService.authorizeResourceUpdate(customerId, {...institution, langOptions: request.langOptions})
+    const assets = prepareAssetForUpdate(institution, {...institution, langOptions: request.langOptions});
+    const tokensUsed = assets.audiosToAdd
+        .map(audio => audio.billableTokens)
+        .reduce((acc, curr) => acc + curr, 0)
+
+    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, {...institution, langOptions: request.langOptions}, tokensUsed)
 
     const {data: institutionUpdated} = await InstitutionDao
         .patch({
@@ -88,14 +100,13 @@ const updateInstitution = async (institutionId: string, customerId: string, requ
             response: "all_new"
         })
 
-    const assets = prepareAssetForUpdate(institution, institutionUpdated);
-
     const mutation: ExposableMutation = {
         entityId: institutionUpdated.id,
         entity: institutionUpdated,
         action: "UPDATE",
         actor: {
             customerId: institutionUpdated.customerId,
+            subscriptionId: subscription?.subscriptionId
         },
         asset: {
             images: undefinedIfEmpty(assets.imagesToAdd),
@@ -105,6 +116,9 @@ const updateInstitution = async (institutionId: string, customerId: string, requ
                 public: undefinedIfEmpty(assets.publicAssetToDelete)
             }
         },
+        billing: {
+            tokensUsed: tokensUsed
+        }
     }
 
     const assetProcessingExecution = await sfnClient.send(

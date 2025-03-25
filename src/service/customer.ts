@@ -1,6 +1,6 @@
 import {CustomerDao, CustomerResources, CustomerWithSubscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
-import {Exposable, getCurrentDate, isExhibit, isExhibition, isInstitution} from "./common";
+import {Exposable, getCurrentDate, getDateString, isExhibit, isExhibition, isInstitution} from "./common";
 import {UpdateCustomerDetailsDto} from "../schema/customer";
 import {Service} from "electrodb";
 import {CustomerException} from "../common/exceptions";
@@ -8,23 +8,19 @@ import {ExhibitDao} from "../model/exhibit";
 import {nanoid} from "nanoid";
 import {ExhibitionDao} from "../model/exhibition";
 import {configurationService} from "./configuration";
-import {logger} from "../common/logger";
 import {InstitutionDao} from "../model/institution";
 
-// Creates new Customer with FREE subscription
-const createCustomer = async (customerId: string, email: string): Promise<CustomerWithSubscription> => {
-    try {
-        return await getCustomerWithSubscription(customerId)
-    } catch (e) {
-        if (e instanceof CustomerException) {
-            logger.info(`Customer ${customerId} not found. Creating new customer.`)
-            return createNewCustomer(customerId, email)
-        }
-        throw e
-    }
-}
-
 const createNewCustomer = async (customerId: string, email: string): Promise<CustomerWithSubscription> => {
+    const {data: customer} = await CustomerDao
+        .get({
+            customerId: customerId
+        })
+        .go()
+
+    if (customer) {
+        throw new CustomerException(`Customer with id ${customerId} already exists.`, 409)
+    }
+
     const customerResponsePromise = CustomerDao
         .create({
             customerId: customerId,
@@ -53,19 +49,16 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         subscriptionResponsePromise,
     ])
 
-    const customer = customerResponse.data
-    const subscription = subscriptionResponse.data
-
     return {
-        customer: customer,
-        subscription: subscription
+        customer: customerResponse.data,
+        subscription: subscriptionResponse.data
     }
 }
 
 const updateCustomerDetails = async (customerId: string, updateCustomerDetails: UpdateCustomerDetailsDto): Promise<CustomerWithSubscription> => {
     await getCustomerWithSubscription(customerId)
 
-    const customerResponseItem = await CustomerDao
+    const {data: customerResponseItem} = await CustomerDao
         .patch({
             customerId: customerId,
         })
@@ -85,6 +78,10 @@ const updateCustomerDetails = async (customerId: string, updateCustomerDetails: 
 const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanType): Promise<CustomerWithSubscription> => {
     const {customer, subscription} = await getCustomerWithSubscription(customerId)
 
+    if (subscription.status !== "ACTIVE") {
+        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+    }
+
     await validateIfCanChangeSubscription(customerId, subscription.plan, newPlan)
 
     const updatedSubscriptionPromise = SubscriptionDao
@@ -93,7 +90,6 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
         })
         .set({
             status: "DEACTIVATED",
-            version: Date.now(),
             expiredAt: getCurrentDate(),
         })
         .go({
@@ -101,6 +97,13 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
         })
 
     const newSubscriptionPlan = configurationService.getSubscriptionPlan(newPlan)
+    const startDate = getCurrentDate()
+    let expiredAtDate = undefined
+    if (newSubscriptionPlan.durationMonths) {
+        expiredAtDate = new Date(startDate)
+        expiredAtDate.setMonth(expiredAtDate.getMonth() + newSubscriptionPlan.durationMonths)
+        expiredAtDate = getDateString(expiredAtDate)
+    }
 
     const createSubscriptionPromise = SubscriptionDao
         .create({
@@ -109,8 +112,8 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
             plan: newSubscriptionPlan.name,
             status: "AWAITING_PAYMENT",
             tokenCount: newSubscriptionPlan.tokenCount,
-            startedAt: getCurrentDate(),
-            expiredAt: undefined,
+            startedAt: startDate,
+            expiredAt: expiredAtDate,
         })
         .go()
 
@@ -202,27 +205,32 @@ const getCustomerWithSubscription = async (customerId: string): Promise<Customer
         throw new CustomerException(`Customer with id ${customerId} not found, or configured incorrectly.`)
     }
 
-    if (customers[0].status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} is not active. Customer status: ${customers[0].status}`)
+    if (customers[0].status === "DEACTIVATED") {
+        throw new CustomerException(`Customer ${customerId} is deactivated.`, 403)
     }
 
-    const activeSubscriptions = subscriptions.filter(subscription => subscription.status === "ACTIVE")
+    const currentSubscription = subscriptions.filter(subscription => {
+        const now = getCurrentDate()
+        return subscription.status !== "DEACTIVATED"
+            && subscription.startedAt >= now
+            && (!subscription.expiredAt || subscription.expiredAt <= now)
+    })
 
-    if (activeSubscriptions.length > 1) {
+    if (currentSubscription.length > 1) {
         throw new CustomerException(`Configuration error. Customer ${customerId} has more than one active subscription.`)
     }
 
-    if (activeSubscriptions.length < 1) {
+    if (currentSubscription.length < 1) {
         throw new CustomerException(`Customer ${customerId} has no active subscription.`)
     }
 
     return {
         customer: customers[0],
-        subscription: activeSubscriptions[0]
+        subscription: currentSubscription[0]
     }
 }
 
-const authorizeResourceCreation = async (customerId: string, resource: Exposable): Promise<void> => {
+const authorizeResourceCreationAndLock = async (customerId: string, resource: Exposable, tokensUsed: number): Promise<CustomerWithSubscription> => {
     const customerPromise = getCustomerWithSubscription(customerId)
     const customerResourcesPromise = getCustomerResources(customerId)
     const [{customer, subscription}, customerResources] = await Promise.all([
@@ -231,8 +239,12 @@ const authorizeResourceCreation = async (customerId: string, resource: Exposable
     ])
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
 
-    if (customer.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} is not active. Customer status: ${customer.status}`, 403)
+    if (subscription.status !== "ACTIVE") {
+        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+    }
+
+    if (subscription.tokenCount - tokensUsed < 0) {
+        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
     }
 
     if (isInstitution(resource) && customerResources.institutionsCount > 0) {
@@ -250,25 +262,95 @@ const authorizeResourceCreation = async (customerId: string, resource: Exposable
     if (resource.langOptions.length > subscriptionPlan.maxLanguages) {
         throw new CustomerException(`Customer ${customerId} has reached the maximum number of languages for resource allowed by the subscription ${subscription.plan}.`, 403)
     }
+
+    // Lock subscription to prevent concurrent operations
+    await lockSubscription(subscription.subscriptionId)
+
+    return {
+        customer: customer,
+        subscription: subscription
+    }
 }
 
-const authorizeResourceUpdate = async (customerId: string, resource: Exposable): Promise<void> => {
-    const {subscription} = await getCustomerWithSubscription(customerId)
+const authorizeResourceUpdateAndLock = async (customerId: string, resource: Exposable, tokensUsed: number): Promise<CustomerWithSubscription> => {
+    const {customer, subscription} = await getCustomerWithSubscription(customerId)
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
+
+    if (subscription.status !== "ACTIVE") {
+        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+    }
+
+    if (subscription.tokenCount - tokensUsed < 0) {
+        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
+    }
 
     if (resource.langOptions.length > subscriptionPlan.maxLanguages) {
         throw new CustomerException(`Customer ${customerId} has reached the maximum number of languages for resource allowed by the subscription ${subscription.plan}.`, 403)
     }
+
+    // Lock subscription to prevent concurrent operations
+    await lockSubscription(subscription.subscriptionId)
+
+    return {
+        customer: customer,
+        subscription: subscription
+    }
+}
+
+const updateTokenCountAndUnlock = async (subscriptionId: string, tokenCount: number): Promise<void> => {
+    const {data: subscription} = await SubscriptionDao
+        .get({
+            subscriptionId: subscriptionId
+        })
+        .go()
+
+    if (!subscription) {
+        throw new CustomerException(`Subscription ${subscriptionId} not found.`, 404)
+    }
+
+    if (subscription.status !== "LOCKED") {
+        throw new CustomerException(`Subscription ${subscriptionId} is not locked.`, 403)
+    }
+
+    if (subscription.tokenCount - tokenCount < 0) {
+        throw new CustomerException(`Subscription ${subscriptionId} has not enough tokens left.`, 403)
+    }
+
+    await SubscriptionDao
+        .patch({
+            subscriptionId: subscription.subscriptionId,
+        })
+        .set({
+            tokenCount: subscription.tokenCount - tokenCount,
+            status: "ACTIVE",
+        })
+        .go({
+            response: "all_new"
+        })
+}
+
+const lockSubscription = async (subscriptionId: string): Promise<void> => {
+    await SubscriptionDao
+        .patch({
+            subscriptionId: subscriptionId,
+        })
+        .set({
+            status: "LOCKED",
+        })
+        .go({
+            response: "all_new"
+        })
 }
 
 export const customerService = {
     // Public API methods
-    createCustomer: createCustomer,
+    createNewCustomer: createNewCustomer,
     getCustomerWithSubscription: getCustomerWithSubscription,
     updateCustomerDetails: updateCustomerDetails,
     changeSubscription: changeSubscription,
 
     // Internal methods
-    authorizeResourceCreation: authorizeResourceCreation,
-    authorizeResourceUpdate: authorizeResourceUpdate,
+    authorizeResourceCreationAndLock: authorizeResourceCreationAndLock,
+    authorizeResourceUpdateAndLock: authorizeResourceUpdateAndLock,
+    updateTokenCountAndUnlock: updateTokenCountAndUnlock,
 };

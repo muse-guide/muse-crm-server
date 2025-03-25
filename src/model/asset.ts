@@ -27,6 +27,22 @@ export interface AudioInput {
 }
 
 export interface AudioAsset extends AudioInput, PrivateAsset, PublicAsset {
+    billableTokens: number,
+}
+
+const availableSsmlTags = [
+    /<break\/>/g,
+    /<break time="[^"]+"\/>/g,
+    /<lang xml:lang="[^"]+">/g,
+    /<\/lang>/g,
+]
+
+export const getBillableCharacterCount = (markup: string): number => {
+    let cleanedCharacters = markup;
+    for (const tags in availableSsmlTags) {
+        cleanedCharacters = cleanedCharacters.replaceAll(availableSsmlTags[tags], '');
+    }
+    return cleanedCharacters.length;
 }
 
 export interface DeleteAsset {

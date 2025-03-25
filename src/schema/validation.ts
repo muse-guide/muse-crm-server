@@ -2,6 +2,7 @@ import {z} from "zod";
 import {BadRequestException} from "../common/exceptions";
 import {parse} from "node-html-parser";
 import {logger} from "../common/logger";
+import {getBillableCharacterCount} from "../model/asset";
 
 export const nanoId = z.string().length(8);
 export const nanoId_12 = z.string().length(12);
@@ -18,21 +19,10 @@ export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: strin
     if (allEntriesLength !== distinctEntriesLength) throw new BadRequestException(msg ?? "Array contains not unique entries")
 }
 
-const availableSsmlTags = [
-    /<break\/>/g,
-    /<break time="[^"]+"\/>/g,
-    /<lang xml:lang="[^"]+">/g,
-    /<\/lang>/g,
-]
-
 export const validateAudioCharacterCount = (characters?: string) => {
     if (!characters) return
-    let cleanedCharacters = characters;
-
-    for (const tags in availableSsmlTags) {
-        cleanedCharacters = cleanedCharacters.replaceAll(availableSsmlTags[tags], '');
-    }
-    if (cleanedCharacters.length > 2000) throw new BadRequestException("Audio exceeds character limit")
+    const billableCharacterCount = getBillableCharacterCount(characters);
+    if (billableCharacterCount > 2000) throw new BadRequestException("Audio exceeds character limit")
 }
 
 export const validateArticleMarkup = (markup?: string) => {

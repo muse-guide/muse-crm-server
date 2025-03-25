@@ -14,11 +14,15 @@ export interface ExposableMutation extends Mutation {
         images?: ImageAsset[],
         audios?: AudioAsset[],
         delete?: DeleteAsset
+    },
+    billing?: {
+        tokensUsed?: number
     }
 }
 
 export interface Actor {
     customerId: string,
+    subscriptionId?: string
 }
 
 export type MutationAction = "CREATE" | "UPDATE" | "DELETE"

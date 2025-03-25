@@ -10,7 +10,7 @@ const envToNumber = (env: string | undefined, defaultValue: number) => {
 const subscriptionPlans: SubscriptionPlan[] = [
     {
         name: "FREE",
-        period: "LIFETIME",
+        durationMonths: undefined,
         price: envToNumber(process.env.SUB_FREE_PRICE, 0),
         maxExhibitions: envToNumber(process.env.SUB_FREE_MAX_EXHIBITIONS, 1),
         maxExhibits: envToNumber(process.env.SUB_FREE_MAX_EXHIBITS, 10),
@@ -20,7 +20,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
     },
     {
         name: "BASIC",
-        period: "MONTHLY",
+        durationMonths: 1,
         price: envToNumber(process.env.SUB_BASIC_PRICE, 5),
         maxExhibitions: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITIONS, 2),
         maxExhibits: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITS, 20),
@@ -29,7 +29,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
     },
     {
         name: "PREMIUM",
-        period: "MONTHLY",
+        durationMonths: 1,
         price: envToNumber(process.env.SUB_PREMIUM_PRICE, 10),
         maxExhibitions: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITIONS, 5),
         maxExhibits: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITS, 100),
@@ -40,7 +40,7 @@ const subscriptionPlans: SubscriptionPlan[] = [
 
 export interface SubscriptionPlan {
     name: SubscriptionPlanType,
-    period: SubscriptionPeriod,
+    durationMonths?: number,
     price: number,
     maxExhibitions: number,
     maxExhibits: number,

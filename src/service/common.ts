@@ -1,5 +1,5 @@
 import {Exhibit} from "../model/exhibit";
-import {AudioAsset, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset, ThumbnailAsset} from "../model/asset";
+import {AudioAsset, getBillableCharacterCount, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset, ThumbnailAsset} from "../model/asset";
 import {Exhibition} from "../model/exhibition";
 import {EntityStructure} from "../model/common";
 import crypto from 'crypto';
@@ -64,6 +64,7 @@ export const toAudioAsset = (resource: Exposable): AudioAsset[] => {
             return {
                 privatePath: `${resource.customerId}/audios/${resource.id}_${opt.lang}`,
                 publicPath: `asset/${resource.id}/audios/${opt.lang}`,
+                billableTokens: getBillableCharacterCount(audio.markup),
                 markup: audio.markup,
                 voice: audio.voice,
                 lang: opt.lang

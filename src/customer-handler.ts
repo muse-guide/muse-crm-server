@@ -15,7 +15,7 @@ const customerCreate = async (event: PostConfirmationTriggerEvent) => {
     const email = userAttributes['email']
 
     logger.info(`Creating customer with id: ${customerId} and email: ${email}`)
-    await customerService.createCustomer(customerId, email)
+    await customerService.createNewCustomer(customerId, email)
 
     return event
 };
