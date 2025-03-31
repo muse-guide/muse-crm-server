@@ -60,9 +60,6 @@ const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto
             images: undefinedIfEmpty(images),
             audios: undefinedIfEmpty(audios)
         },
-        billing: {
-            tokensUsed: tokensUsed
-        }
     }
 
     const assetProcessingExecution = await sfnClient.send(
@@ -179,9 +176,6 @@ const updateExhibit = async (exhibitId: string, customerId: string, updateExhibi
                 private: undefinedIfEmpty(assets.privateAssetToDelete),
                 public: undefinedIfEmpty(assets.publicAssetToDelete)
             }
-        },
-        billing: {
-            tokensUsed: tokensUsed
         }
     }
 

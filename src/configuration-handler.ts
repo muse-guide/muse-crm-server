@@ -4,15 +4,14 @@ import {logger} from "./common/logger";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import cors from "@middy/http-cors";
 import {configurationService} from "./service/configuration";
-import {ApplicationConfiguration, InvoicePeriod} from "./model/configuration";
+import {ApplicationConfiguration} from "./model/configuration";
 
 const configurationGet = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         logger.info(`Getting application configuration`)
-        const lastInvoicedPeriod = configurationService.getCurrentInvoicePeriod()
         const applicationConfiguration = configurationService.getApplicationConfiguration()
 
-        return responseFormatter(200, mapToConfigurationDto(applicationConfiguration, lastInvoicedPeriod))
+        return responseFormatter(200, mapToConfigurationDto(applicationConfiguration))
     } catch (err) {
         return restHandleError(err);
     }
@@ -22,7 +21,7 @@ export const configurationGetHandler = middy(configurationGet);
 configurationGetHandler
     .use(cors())
 
-const mapToConfigurationDto = (configuration: ApplicationConfiguration, lastInvoicedPeriod: InvoicePeriod) => {
+const mapToConfigurationDto = (configuration: ApplicationConfiguration) => {
     return {
         subscriptionPlans: configuration.subscriptionPlans.map(plan => {
             return {
@@ -31,12 +30,9 @@ const mapToConfigurationDto = (configuration: ApplicationConfiguration, lastInvo
                 maxExhibitions: plan.maxExhibitions,
                 maxExhibits: plan.maxExhibits,
                 maxLanguages: plan.maxLanguages,
+                tokenCount: plan.tokenCount,
             }
         }),
-        lastInvoicedPeriod: {
-            periodStart: lastInvoicedPeriod.periodStart,
-            periodEnd: lastInvoicedPeriod.periodEnd,
-        },
         companyDetails: configuration.companyDetails
     }
 }

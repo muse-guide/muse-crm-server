@@ -19,10 +19,12 @@ export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: strin
     if (allEntriesLength !== distinctEntriesLength) throw new BadRequestException(msg ?? "Array contains not unique entries")
 }
 
-export const validateAudioCharacterCount = (characters?: string) => {
-    if (!characters) return
+export const validateAudioCharacterCount = (characters?: string): number => {
+    if (!characters) return 0
     const billableCharacterCount = getBillableCharacterCount(characters);
     if (billableCharacterCount > 2000) throw new BadRequestException("Audio exceeds character limit")
+
+    return billableCharacterCount
 }
 
 export const validateArticleMarkup = (markup?: string) => {

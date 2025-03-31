@@ -13,7 +13,8 @@ export interface CustomerDto {
         plan: string
         status: string
         startedAt: string
-        expiredAt?: string
+        expiredAt?: string,
+        tokenCount: number
     }
     address?: AddressDto
 }

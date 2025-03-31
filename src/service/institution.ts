@@ -55,9 +55,6 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
             images: undefinedIfEmpty(images),
             audios: undefinedIfEmpty(audios)
         },
-        billing: {
-            tokensUsed: tokensUsed
-        }
     }
 
     const assetProcessingExecution = await sfnClient.send(
@@ -116,9 +113,6 @@ const updateInstitution = async (institutionId: string, customerId: string, requ
                 public: undefinedIfEmpty(assets.publicAssetToDelete)
             }
         },
-        billing: {
-            tokensUsed: tokensUsed
-        }
     }
 
     const assetProcessingExecution = await sfnClient.send(

@@ -10,5 +10,6 @@ export const audioPreviewRequest = z.object({
 export type AudioPreviewResponseDto = {
     audio: {
         key: string,
+        billableTokens: number,
     }
 }

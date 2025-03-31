@@ -1,4 +1,4 @@
-import {CustomerDao, CustomerResources, CustomerWithSubscription, SubscriptionDao} from "../model/customer";
+import {CustomerDao, CustomerResources, CustomerWithSubscription, Subscription, SubscriptionDao} from "../model/customer";
 import {SubscriptionPlanType} from "../model/common";
 import {Exposable, getCurrentDate, getDateString, isExhibit, isExhibition, isInstitution} from "./common";
 import {UpdateCustomerDetailsDto} from "../schema/customer";
@@ -169,9 +169,24 @@ const getCustomerResources = async (customerId: string): Promise<CustomerResourc
     const exhibitions = customerResourcesResponseItem.data.exhibition
     const exhibits = customerResourcesResponseItem.data.exhibit
 
-    const maxLanguagesInInstitutions = institutions.reduce((acc, institution) => acc + institution.langOptions.length, 0)
-    const maxLanguagesInExhibitions = exhibitions.reduce((acc, exhibition) => acc + exhibition.langOptions.length, 0)
-    const maxLanguagesInExhibits = exhibits.reduce((acc, exhibit) => acc + exhibit.langOptions.length, 0)
+    const maxLanguagesInInstitutions = institutions
+        .flatMap(institution => institution.langOptions)
+        .map(langOption => langOption.lang)
+        .filter((lang, index, self) => self.indexOf(lang) === index)
+        .length
+
+    const maxLanguagesInExhibitions = exhibitions
+        .flatMap(exhibition => exhibition.langOptions)
+        .map(langOption => langOption.lang)
+        .filter((lang, index, self) => self.indexOf(lang) === index)
+        .length
+
+    const maxLanguagesInExhibits = exhibits
+        .flatMap(exhibit => exhibit.langOptions)
+        .map(langOption => langOption.lang)
+        .filter((lang, index, self) => self.indexOf(lang) === index)
+        .length
+
     const maxLanguages = Math.max(maxLanguagesInInstitutions, maxLanguagesInExhibitions, maxLanguagesInExhibits);
 
     return {
@@ -212,8 +227,8 @@ const getCustomerWithSubscription = async (customerId: string): Promise<Customer
     const currentSubscription = subscriptions.filter(subscription => {
         const now = getCurrentDate()
         return subscription.status !== "DEACTIVATED"
-            && subscription.startedAt >= now
-            && (!subscription.expiredAt || subscription.expiredAt <= now)
+            && subscription.startedAt <= now
+            && (!subscription.expiredAt || subscription.expiredAt >= now)
     })
 
     if (currentSubscription.length > 1) {
@@ -264,7 +279,7 @@ const authorizeResourceCreationAndLock = async (customerId: string, resource: Ex
     }
 
     // Lock subscription to prevent concurrent operations
-    await lockSubscription(subscription.subscriptionId)
+    await updateTokenCountAndLockSubscription(subscription, tokensUsed)
 
     return {
         customer: customer,
@@ -289,7 +304,7 @@ const authorizeResourceUpdateAndLock = async (customerId: string, resource: Expo
     }
 
     // Lock subscription to prevent concurrent operations
-    await lockSubscription(subscription.subscriptionId)
+    await updateTokenCountAndLockSubscription(subscription, tokensUsed)
 
     return {
         customer: customer,
@@ -297,7 +312,31 @@ const authorizeResourceUpdateAndLock = async (customerId: string, resource: Expo
     }
 }
 
-const updateTokenCountAndUnlock = async (subscriptionId: string, tokenCount: number): Promise<void> => {
+const authorizeAudioPreviewCreationAndLock = async (customerId: string, tokensUsed: number): Promise<CustomerWithSubscription> => {
+    const {customer, subscription} = await getCustomerWithSubscription(customerId)
+
+    if (subscription.status !== "ACTIVE") {
+        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+    }
+
+    if (subscription.tokenCount - tokensUsed < 0) {
+        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
+    }
+
+    // Lock subscription to prevent concurrent operations
+    await updateTokenCountAndLockSubscription(subscription, tokensUsed)
+
+    return {
+        customer: customer,
+        subscription: subscription
+    }
+}
+
+const unlockSubscription = async (subscriptionId: string | undefined): Promise<void> => {
+    if (!subscriptionId) {
+        throw new CustomerException(`Subscription id is required.`, 400)
+    }
+
     const {data: subscription} = await SubscriptionDao
         .get({
             subscriptionId: subscriptionId
@@ -312,16 +351,11 @@ const updateTokenCountAndUnlock = async (subscriptionId: string, tokenCount: num
         throw new CustomerException(`Subscription ${subscriptionId} is not locked.`, 403)
     }
 
-    if (subscription.tokenCount - tokenCount < 0) {
-        throw new CustomerException(`Subscription ${subscriptionId} has not enough tokens left.`, 403)
-    }
-
     await SubscriptionDao
         .patch({
             subscriptionId: subscription.subscriptionId,
         })
         .set({
-            tokenCount: subscription.tokenCount - tokenCount,
             status: "ACTIVE",
         })
         .go({
@@ -329,12 +363,13 @@ const updateTokenCountAndUnlock = async (subscriptionId: string, tokenCount: num
         })
 }
 
-const lockSubscription = async (subscriptionId: string): Promise<void> => {
+const updateTokenCountAndLockSubscription = async (subscription: Subscription, tokenCount: number): Promise<void> => {
     await SubscriptionDao
         .patch({
-            subscriptionId: subscriptionId,
+            subscriptionId: subscription.subscriptionId,
         })
         .set({
+            tokenCount: subscription.tokenCount - tokenCount,
             status: "LOCKED",
         })
         .go({
@@ -352,5 +387,6 @@ export const customerService = {
     // Internal methods
     authorizeResourceCreationAndLock: authorizeResourceCreationAndLock,
     authorizeResourceUpdateAndLock: authorizeResourceUpdateAndLock,
-    updateTokenCountAndUnlock: updateTokenCountAndUnlock,
+    unlockSubscription: unlockSubscription,
+    authorizeAudioPreviewCreationAndLock: authorizeAudioPreviewCreationAndLock
 };

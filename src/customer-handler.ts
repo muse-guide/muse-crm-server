@@ -104,6 +104,7 @@ const mapToCustomerDto = (customer: CustomerWithSubscription): CustomerDto => {
             status: customer.subscription.status,
             startedAt: customer.subscription.startedAt,
             expiredAt: customer.subscription.expiredAt,
+            tokenCount: customer.subscription.tokenCount,
         },
         address: customer.customer.address
     }

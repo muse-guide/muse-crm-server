@@ -15,9 +15,6 @@ export interface ExposableMutation extends Mutation {
         audios?: AudioAsset[],
         delete?: DeleteAsset
     },
-    billing?: {
-        tokensUsed?: number
-    }
 }
 
 export interface Actor {
