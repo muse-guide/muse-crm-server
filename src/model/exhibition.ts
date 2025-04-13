@@ -28,10 +28,6 @@ export const ExhibitionDao = new Entity(
                 type: "string",
                 required: true,
             },
-            includeInstitutionInfo: {
-                type: "boolean",
-                required: true,
-            },
             langOptions: {
                 type: "list",
                 required: true,
@@ -104,6 +100,12 @@ export const ExhibitionDao = new Entity(
                     return Date.now()
                 }
             },
+            kind: {
+                type: "string",
+                set: _ => {
+                    return "exhibition"
+                }
+            }
         },
         indexes: {
             byId: {

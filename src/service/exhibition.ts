@@ -22,7 +22,6 @@ const createExhibition = async (customerId: string, createExhibition: CreateExhi
     const exhibition: Exhibition = {
         id: exhibitionId,
         customerId: customerId,
-        includeInstitutionInfo: createExhibition.includeInstitutionInfo,
         referenceName: createExhibition.referenceName,
         langOptions: createExhibition.langOptions.map(lang => ({
             ...lang,
@@ -91,7 +90,6 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
             id: exhibitionId
         }).set({
             referenceName: updateExhibition.referenceName,
-            includeInstitutionInfo: updateExhibition.includeInstitutionInfo,
             langOptions: updateExhibition.langOptions.map(lang => ({
                 ...lang,
                 article: articleService.processArticleImages(lang.article)

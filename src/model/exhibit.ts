@@ -104,6 +104,12 @@ export const ExhibitDao = new Entity(
                     return Date.now()
                 }
             },
+            kind: {
+                type: "string",
+                set: _ => {
+                    return "exhibit"
+                }
+            }
         },
         indexes: {
             byId: {

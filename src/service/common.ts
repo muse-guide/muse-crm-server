@@ -5,6 +5,7 @@ import {EntityStructure} from "../model/common";
 import crypto from 'crypto';
 import {articleService} from "./article";
 import {Institution} from "../model/institution";
+import Any = jasmine.Any;
 
 const RESOURCE_NUMBER_LENGTH = 6
 
@@ -12,15 +13,15 @@ export type Exposable = Exhibit | Exhibition | Institution;
 export type ResourceType = "exhibits" | "exhibitions" | "institutions";
 
 export function isInstitution(resource: Exposable): resource is Institution {
-    return isExhibit(resource) ? false : !isExhibition(resource);
+    return resource.kind === "institution";
 }
 
 export function isExhibit(resource: Exposable): resource is Exhibit {
-    return (resource as Exhibit).exhibitionId !== undefined;
+    return resource.kind === "exhibit";
 }
 
 export function isExhibition(resource: Exposable): resource is Exhibition {
-    return (resource as Exhibition).includeInstitutionInfo !== undefined;
+    return resource.kind === "exhibition";
 }
 
 export const toResourceType = (resource: Exposable): ResourceType =>

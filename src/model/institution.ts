@@ -96,6 +96,12 @@ export const InstitutionDao = new Entity(
                     return Date.now()
                 }
             },
+            kind: {
+                type: "string",
+                set: _ => {
+                    return "institution"
+                }
+            }
         },
         indexes: {
             byId: {

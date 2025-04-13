@@ -164,7 +164,6 @@ const mapToExhibitionDto = (exhibition: Exhibition): ExhibitionDto => {
         id: exhibition.id,
         institutionId: exhibition.institutionId,
         referenceName: exhibition.referenceName,
-        includeInstitutionInfo: exhibition.includeInstitutionInfo,
         langOptions: exhibition.langOptions.map(opt => {
             const audio = opt.audio ? {
                 key: `${exhibition.id}_${opt.lang}`,

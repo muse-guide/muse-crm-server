@@ -6,16 +6,13 @@ import {audioService} from "./service/audio";
 import {AudioAsset} from "./model/asset";
 import {PutObjectCommand} from "@aws-sdk/client-s3";
 import {s3Client} from "./common/aws-clients";
-import {Actor} from "./model/mutation";
-import {customerService} from "./service/customer";
 
 const privateAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 const publicAssetBucket = required.parse(process.env.APP_ASSET_BUCKET)
 
-const audioProcessor = async ({actor, audios}: { actor: Actor, audios: AudioAsset[] }) => {
+const audioProcessor = async ({audios}: { audios: AudioAsset[] }) => {
     try {
         await Promise.all(audios.map(processSingle))
-        await customerService.unlockSubscription(actor.subscriptionId)
     } catch (err) {
         return handleError(err);
     }
