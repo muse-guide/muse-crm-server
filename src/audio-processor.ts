@@ -26,12 +26,14 @@ const processSingle = async (audio: AudioAsset) => {
         Bucket: privateAssetBucket,
         Key: audio.privatePath,
         Body: mp3,
+        ContentLength: mp3.length,
         ContentType: 'audio/mpeg'
     });
     const publicAsset = new PutObjectCommand({
         Bucket: publicAssetBucket,
         Key: audio.publicPath,
         Body: mp3,
+        ContentLength: mp3.length,
         ContentType: 'audio/mpeg'
     });
 

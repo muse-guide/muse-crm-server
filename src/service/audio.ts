@@ -1,75 +1,69 @@
-import {SynthesizeSpeechCommand, SynthesizeSpeechCommandInput, SynthesizeSpeechCommandOutput, VoiceId} from "@aws-sdk/client-polly";
-import {LanguageCode} from "@aws-sdk/client-polly/dist-types/models/models_0";
+import {Readable} from "stream";
 import {AudioGenerationException} from "../common/exceptions";
+import {getSecureStringParameter} from "../common/functions";
 import {AudioInput, Voice} from "../model/asset";
-import {pollyClient} from "../common/aws-clients";
+import {ElevenLabsClient} from "elevenlabs";
 
-export interface AudioGeneratorInput {
-    lang: string,
-    markup: string,
-}
+const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY_PARAMETER_NAME!!
 
-export interface AudioGenerator {
-    voice: string
-
-    synthesize(input: AudioGeneratorInput): Promise<Uint8Array>
-
-    normalize(markup: string): string
-}
-
-export class PollyAudioGenerator implements AudioGenerator {
-
-    client = pollyClient
-
-    voice: Voice = "FEMALE_1"
-
-    voiceMappings = new Map<string, VoiceId>([
-        ["pl-PL", "Ola"],
-        ["en-GB", "Emma"],
-        ["es-ES", "Lucia"]
-    ])
-
-    async synthesize(input: AudioGeneratorInput): Promise<Uint8Array> {
-        const normalized = this.normalize(input.markup)
-        const ttsInput: SynthesizeSpeechCommandInput = { // SynthesizeSpeechInput
-            Engine: "neural",
-            LanguageCode: input.lang as LanguageCode,
-            OutputFormat: "mp3",
-            Text: normalized,
-            TextType: "ssml",
-            VoiceId: this.voiceMappings.get(input.lang) ?? undefined
-        };
-
-        const command = new SynthesizeSpeechCommand(ttsInput);
-        const response: SynthesizeSpeechCommandOutput = await this.client.send(command);
-
-        if (!response.AudioStream) throw new AudioGenerationException()
-        return response.AudioStream?.transformToByteArray()
-    }
-
-    normalize(markup: string): string {
-        return `<speak>${markup}</speak>`;
+const getClient = async (): Promise<ElevenLabsClient> => {
+    try {
+        const apiKey = await getSecureStringParameter(ELEVEN_LABS_API_KEY);
+        console.log("apiKey", apiKey.slice(0, 10));
+        if (!apiKey) {
+            throw new AudioGenerationException("API key not found");
+        }
+        return new ElevenLabsClient({apiKey});
+    } catch (error) {
+        console.error("Error retrieving parameter:", error);
+        throw new AudioGenerationException("Failed to retrieve API key");
     }
 }
 
-class AudioService {
+const streamToBuffer = async (stream: Readable): Promise<Buffer> => {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of stream) {
+        chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+};
 
-    audioGenerators: AudioGenerator[] = [
-        new PollyAudioGenerator()
-    ]
-
-    generate(input: AudioInput) {
-        const mp3 = this.audioGenerators
-            .find(gen => gen.voice === input.voice)
-            ?.synthesize({
-                lang: input.lang,
-                markup: input.markup
-            })
-
-        if (!mp3) throw new AudioGenerationException("No generator found for selected Voice")
-
-        return mp3
+const mapElevenLabsVoice = (voice: Voice): string => {
+    switch (voice) {
+        case "MALE_1":
+            return "Brian"
+        case "FEMALE_1":
+            return "Sarah"
     }
 }
 
-export const audioService = new AudioService()
+const generateWIthElevenLabs = async (input: AudioInput): Promise<Buffer> => {
+    const client = await getClient();
+
+    const audioStream = await client.generate({
+        voice: mapElevenLabsVoice(input.voice),
+        text: input.markup,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+            speed: 1.0,
+            stability: 0.5,
+            similarity_boost: 0.75,
+            use_speaker_boost: true
+        }
+    });
+
+    return await streamToBuffer(audioStream);
+}
+
+const generate = async (input: AudioInput) => {
+    try {
+        return await generateWIthElevenLabs(input)
+    } catch (error) {
+        console.error("Error generating audio:", error);
+        throw new AudioGenerationException("Failed to generate audio");
+    }
+}
+
+export const audioService = {
+    generate: generate
+}

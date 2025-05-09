@@ -48,7 +48,7 @@ export const ExhibitDao = new Entity(
                         },
                         subtitle: {
                             type: "string",
-                            required: true,
+                            required: false,
                         },
                         article: {
                             type: "string",
@@ -165,7 +165,7 @@ export interface ExhibitPreview {
     lang: string;
     langOptions: string[];
     title: string;
-    subtitle: string;
+    subtitle?: string;
     article?: string;
     imageUrls: string[];
     audio?: string;

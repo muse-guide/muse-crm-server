@@ -7,7 +7,7 @@ export const upsertInstitutionSchema = z.object({
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(200),
-        subtitle: z.string().min(1).max(200).optional(),
+        subtitle: z.string().max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),

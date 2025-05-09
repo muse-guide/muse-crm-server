@@ -27,6 +27,7 @@ const generateAudioPreview = async (event: APIGatewayProxyEvent): Promise<APIGat
             Bucket: privateAssetBucket,
             Key: `${customerId}/tmp/${key}`,
             Body: mp3,
+            ContentLength: mp3.length,
             ContentType: 'audio/mpeg'
         });
         await s3Client.send(params);

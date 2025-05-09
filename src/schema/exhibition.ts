@@ -7,7 +7,7 @@ export const createExhibitionSchema = z.object({
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(120),
-        subtitle: z.string().min(1).max(200),
+        subtitle: z.string().max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),
@@ -27,7 +27,7 @@ export const updateExhibitionSchema = z.object({
     langOptions: z.array(z.object({
         lang: z.enum(supportedLanguages),
         title: z.string().min(1).max(120),
-        subtitle: z.string().min(1).max(200),
+        subtitle: z.string().max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
             markup: z.string().min(1),
@@ -49,7 +49,7 @@ export interface ExhibitionDto {
     langOptions: {
         lang: string,
         title: string,
-        subtitle: string,
+        subtitle?: string,
         article?: string,
         audio?: AudioDto
     }[],
