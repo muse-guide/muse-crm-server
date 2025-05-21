@@ -106,9 +106,7 @@ export const ExhibitDao = new Entity(
             },
             kind: {
                 type: "string",
-                set: _ => {
-                    return "exhibit"
-                }
+                default: "exhibit"
             }
         },
         indexes: {

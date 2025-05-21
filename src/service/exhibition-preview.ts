@@ -48,8 +48,8 @@ const prepareExhibitionPreview = (lang: string, exhibition: Exhibition | null): 
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? exhibition.langOptions[0]
 
-    const images = exhibition.images.map(img => `${appDomain}/asset/${exhibition.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/${exhibition.id}/audios/${langOption.lang}` : undefined
+    const images = exhibition.images.map(img => `/asset/${exhibition.id}/images/${img.id}`)
+    const audio = langOption.audio ? `/asset/${exhibition.id}/audios/${langOption.lang}` : undefined
     const article = articleService.preparePublicArticleImages(exhibition.id, langOption.article)
 
     return {

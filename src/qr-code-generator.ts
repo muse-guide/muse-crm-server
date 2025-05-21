@@ -13,7 +13,7 @@ const crmAssetBucket = required.parse(process.env.CRM_ASSET_BUCKET)
 
 const qrCodeGenerator = async (qrCode: QrCodeAsset) => {
     try {
-        const urlToEncode = `${domain}/${qrCode.value}`
+        const urlToEncode = `https://${domain}/${qrCode.value}`
         const qrCodeBuffer = await QRCode.toBuffer(urlToEncode, {
             scale: 16
         })

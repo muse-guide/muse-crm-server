@@ -13,14 +13,17 @@ export type Exposable = Exhibit | Exhibition | Institution;
 export type ResourceType = "exhibits" | "exhibitions" | "institutions";
 
 export function isInstitution(resource: Exposable): resource is Institution {
+    console.log("Institution check", resource.kind);
     return resource.kind === "institution";
 }
 
 export function isExhibit(resource: Exposable): resource is Exhibit {
+    console.log("Exhibit check", resource.kind);
     return resource.kind === "exhibit";
 }
 
 export function isExhibition(resource: Exposable): resource is Exhibition {
+    console.log("Exhibition check", resource.kind);
     return resource.kind === "exhibition";
 }
 

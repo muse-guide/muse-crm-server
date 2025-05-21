@@ -11,6 +11,7 @@ import {articleService} from "./service/article";
 import {Exhibition} from "./model/exhibition";
 import {PaginatedDtoResults} from "./schema/common";
 import {logger} from "./common/logger";
+import {unlockSubscription} from "./common/exception-handler";
 
 /**
  * Creates a new exhibition
@@ -33,6 +34,8 @@ const exhibitionCreate = async (event: APIGatewayProxyEvent): Promise<APIGateway
         const response = await exhibitionService.createExhibition(customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };
@@ -115,6 +118,8 @@ const exhibitionDelete = async (event: APIGatewayProxyEvent): Promise<APIGateway
         const response = await exhibitionService.deleteExhibition(exhibitionId, customerId)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };
@@ -148,6 +153,8 @@ export const exhibitionUpdate = async (event: APIGatewayProxyEvent): Promise<API
         const response = await exhibitionService.updateExhibition(exhibitionId, customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 }

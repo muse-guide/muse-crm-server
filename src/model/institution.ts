@@ -98,9 +98,7 @@ export const InstitutionDao = new Entity(
             },
             kind: {
                 type: "string",
-                set: _ => {
-                    return "institution"
-                }
+                default: "institution"
             }
         },
         indexes: {

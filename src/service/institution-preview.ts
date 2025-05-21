@@ -18,8 +18,8 @@ const getInstitutionPreview = async (institutionId: string, lang: string): Promi
     const requestedLangOption = institution.langOptions.find((opt: { lang: string; }) => opt.lang === lang)
     const langOption = requestedLangOption ?? institution.langOptions[0]
 
-    const images = institution.images.map(img => `${appDomain}/asset/${institution.id}/images/${img.id}`)
-    const audio = langOption.audio ? `${appDomain}/asset/${institution.id}/audios/${langOption.lang}` : undefined
+    const images = institution.images.map(img => `/asset/${institution.id}/images/${img.id}`)
+    const audio = langOption.audio ? `/asset/${institution.id}/audios/${langOption.lang}` : undefined
     const article = articleService.preparePublicArticleImages(institution.id, langOption.article)
 
     return {

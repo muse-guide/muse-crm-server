@@ -83,7 +83,7 @@ const preparePublicArticleImages = (resourceId: string, markup?: string): string
         const src = image.getAttribute('src');
         if (!src) return;
 
-        const publicUrl = `${appDomain}/asset/${resourceId}/images/${src}`;
+        const publicUrl = `/asset/${resourceId}/images/${src}`;
         image.setAttribute('src', publicUrl);
     });
 

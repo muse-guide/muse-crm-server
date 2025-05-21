@@ -33,7 +33,8 @@ const createExhibit = async (customerId: string, createExhibit: CreateExhibitDto
             article: articleService.processArticleImages(lang.article)
         })),
         images: createExhibit.images,
-        status: "PROCESSING",
+        kind: 'exhibit',
+        status: "PROCESSING"
     }
 
     const {audios, images, qrCode} = prepareAssetsForCreation(exhibit);
@@ -132,28 +133,28 @@ const searchExhibitsForCustomer = async (customerId: string, pagination: Paginat
 
 const updateExhibit = async (exhibitId: string, customerId: string, updateExhibit: UpdateExhibitDto): Promise<MutationResponse> => {
     const exhibit = await getExhibitForCustomer(exhibitId, customerId)
-    // TODO add audio input validation here
+    const processedUpdateLangOptions = updateExhibit.langOptions.map(lang => {
+        return {...lang, article: articleService.processArticleImages(lang.article)}
+    })
+    const exhibitUpdateRequest = {...exhibit, ...updateExhibit, number: updateExhibit.number, langOptions: processedUpdateLangOptions}
 
-    const assets = prepareAssetForUpdate(exhibit, {...exhibit, langOptions: updateExhibit.langOptions});
+    const assets = prepareAssetForUpdate(exhibit, exhibitUpdateRequest);
     const tokensUsed = assets.audiosToAdd
         .map(audio => audio.billableTokens)
         .reduce((acc, curr) => acc + curr, 0)
 
-    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, {...exhibit, langOptions: updateExhibit.langOptions}, tokensUsed)
+    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, exhibitUpdateRequest, tokensUsed)
 
     const {data: exhibitUpdated} = await ExhibitDao
         .patch({
             id: exhibitId
         })
         .set({
-            exhibitionId: exhibit.exhibitionId,
-            referenceName: updateExhibit.referenceName,
-            number: addLeadingZeros(updateExhibit.number),
-            langOptions: updateExhibit.langOptions.map(lang => ({
-                ...lang,
-                article: articleService.processArticleImages(lang.article)
-            })),
-            images: updateExhibit.images,
+            exhibitionId: exhibitUpdateRequest.exhibitionId,
+            referenceName: exhibitUpdateRequest.referenceName,
+            number: addLeadingZeros(exhibitUpdateRequest.number),
+            langOptions: exhibitUpdateRequest.langOptions,
+            images: exhibitUpdateRequest.images,
             status: "PROCESSING",
             version: Date.now(),
         })

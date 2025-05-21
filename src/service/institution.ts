@@ -26,6 +26,7 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
             article: articleService.processArticleImages(lang.article)
         })),
         images: request.images ?? [],
+        kind: 'exhibition',
         status: "PROCESSING",
     }
 
@@ -72,24 +73,25 @@ const createInstitution = async (customerId: string, request: UpsertInstitutionR
 
 const updateInstitution = async (institutionId: string, customerId: string, request: UpsertInstitutionRequest): Promise<MutationResponse> => {
     const institution = await getInstitutionInternal(institutionId, customerId)
+    const processedUpdateLangOptions = request.langOptions.map(lang => {
+        return {...lang, article: articleService.processArticleImages(lang.article)}
+    })
+    const institutionUpdateRequest = {...institution, ...request, langOptions: processedUpdateLangOptions}
 
-    const assets = prepareAssetForUpdate(institution, {...institution, langOptions: request.langOptions});
+    const assets = prepareAssetForUpdate(institution, institutionUpdateRequest);
     const tokensUsed = assets.audiosToAdd
         .map(audio => audio.billableTokens)
         .reduce((acc, curr) => acc + curr, 0)
 
-    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, {...institution, langOptions: request.langOptions}, tokensUsed)
+    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, institutionUpdateRequest, tokensUsed)
 
     const {data: institutionUpdated} = await InstitutionDao
         .patch({
             id: institutionId
         }).set({
-            referenceName: request.referenceName,
-            langOptions: request.langOptions.map(lang => ({
-                ...lang,
-                article: articleService.processArticleImages(lang.article)
-            })),
-            images: request.images,
+            referenceName: institutionUpdateRequest.referenceName,
+            langOptions: institutionUpdateRequest.langOptions,
+            images: institutionUpdateRequest.images,
             status: "PROCESSING",
             version: Date.now(),
         })

@@ -8,6 +8,7 @@ import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import cors from "@middy/http-cors";
 import {Institution} from "./model/institution";
 import {articleService} from "./service/article";
+import {unlockSubscription} from "./common/exception-handler";
 
 /**
  * Handler for creating an institution.
@@ -30,6 +31,8 @@ const institutionCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         const response = await institutionService.createInstitution(customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };
@@ -87,6 +90,8 @@ export const institutionUpdate = async (event: APIGatewayProxyEvent): Promise<AP
         const response = await institutionService.updateInstitution(institutionId, customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 }

@@ -28,6 +28,7 @@ const createExhibition = async (customerId: string, createExhibition: CreateExhi
             article: articleService.processArticleImages(lang.article)
         })),
         images: createExhibition.images,
+        kind: 'exhibition',
         status: "PROCESSING",
     }
 
@@ -77,24 +78,25 @@ const createExhibition = async (customerId: string, createExhibition: CreateExhi
 
 const updateExhibition = async (exhibitionId: string, customerId: string, updateExhibition: UpdateExhibitionRequest): Promise<MutationResponse> => {
     const exhibition = await getExhibitionForCustomer(exhibitionId, customerId)
+    const processedUpdateLangOptions = updateExhibition.langOptions.map(lang => {
+        return {...lang, article: articleService.processArticleImages(lang.article)}
+    })
+    const exhibitionUpdateRequest = {...exhibition, ...updateExhibition, langOptions: processedUpdateLangOptions}
 
-    const assets = prepareAssetForUpdate(exhibition, {...exhibition, langOptions: updateExhibition.langOptions});
+    const assets = prepareAssetForUpdate(exhibition, exhibitionUpdateRequest);
     const tokensUsed = assets.audiosToAdd
         .map(audio => audio.billableTokens)
         .reduce((acc, curr) => acc + curr, 0)
 
-    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, {...exhibition, langOptions: updateExhibition.langOptions}, tokensUsed)
+    const {subscription} = await customerService.authorizeResourceUpdateAndLock(customerId, exhibitionUpdateRequest, tokensUsed)
 
     const {data: exhibitionUpdated} = await ExhibitionDao
         .patch({
             id: exhibitionId
         }).set({
-            referenceName: updateExhibition.referenceName,
-            langOptions: updateExhibition.langOptions.map(lang => ({
-                ...lang,
-                article: articleService.processArticleImages(lang.article)
-            })),
-            images: updateExhibition.images,
+            referenceName: exhibitionUpdateRequest.referenceName,
+            langOptions: exhibitionUpdateRequest.langOptions,
+            images: exhibitionUpdateRequest.images,
             status: "PROCESSING",
             version: Date.now(),
         })
@@ -103,11 +105,11 @@ const updateExhibition = async (exhibitionId: string, customerId: string, update
         })
 
     const mutation: ExposableMutation = {
-        entityId: exhibitionUpdated.id,
-        entity: exhibitionUpdated,
+        entityId: exhibitionUpdateRequest.id,
+        entity: exhibitionUpdateRequest,
         action: "UPDATE",
         actor: {
-            customerId: exhibitionUpdated.customerId,
+            customerId: exhibitionUpdateRequest.customerId,
             subscriptionId: subscription?.subscriptionId
         },
         asset: {

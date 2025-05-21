@@ -11,6 +11,9 @@ import {articleService} from "./service/article";
 import {Exhibit} from "./model/exhibit";
 import {convertStringToNumber} from "./service/common";
 import {PaginatedDtoResults} from "./schema/common";
+import {logger} from "./common/logger";
+import {customerService} from "./service/customer";
+import {unlockSubscription} from "./common/exception-handler";
 
 /**
  * Creates a new exhibit
@@ -20,9 +23,8 @@ import {PaginatedDtoResults} from "./schema/common";
  */
 const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
-        const request: CreateExhibitDto = createExhibitSchema.parse(event.body)
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
-
+        const request: CreateExhibitDto = createExhibitSchema.parse(event.body)
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
         request.langOptions.forEach(lang => {
@@ -33,6 +35,8 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         const response = await exhibitService.createExhibit(customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };
@@ -119,6 +123,8 @@ const exhibitDelete = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         const response = await exhibitService.deleteExhibit(exhibitId, customerId)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };
@@ -151,6 +157,8 @@ export const exhibitUpdate = async (event: APIGatewayProxyEvent): Promise<APIGat
         const response = await exhibitService.updateExhibit(exhibitId, customerId, request)
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 }

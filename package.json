@@ -12,6 +12,7 @@
     "@aws-sdk/client-ssm": "^3.806.0",
     "@aws-sdk/lib-dynamodb": "^3.806.0",
     "@aws-sdk/s3-request-presigner": "^3.806.0",
+    "@google-cloud/text-to-speech": "^6.0.1",
     "@middy/core": "^6.2.3",
     "@middy/http-cors": "^6.2.3",
     "@middy/http-json-body-parser": "^6.2.3",
