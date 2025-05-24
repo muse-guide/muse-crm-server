@@ -5,8 +5,14 @@ import {generateWithGoogleTTS} from "../audio/google-tts-generator";
 
 const generate = async (input: AudioInput) => {
     try {
-        return await generateWithElevenLabs(input)
-        // return await generateWithGoogleTTS(input)
+        switch (input.voice) {
+            case "MALE_1":
+            case "FEMALE_1":
+                return await generateWithElevenLabs(input)
+            case "MALE_2":
+            case "FEMALE_2":
+                return await generateWithGoogleTTS(input)
+        }
     } catch (error) {
         console.error("Error generating audio:", error);
         throw new AudioGenerationException("Failed to generate audio");

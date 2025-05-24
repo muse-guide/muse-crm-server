@@ -9,7 +9,6 @@ const ELEVEN_LABS_API_KEY = process.env.ELEVEN_LABS_API_KEY_PARAMETER_NAME!!
 const getClient = async (): Promise<ElevenLabsClient> => {
     try {
         const apiKey = await getSecureStringParameter(ELEVEN_LABS_API_KEY);
-        console.log("apiKey", apiKey.slice(0, 10));
         if (!apiKey) {
             throw new AudioGenerationException("API key not found");
         }
@@ -34,6 +33,8 @@ const mapVoice = (voice: Voice): string => {
             return "Brian"
         case "FEMALE_1":
             return "Sarah"
+        default:
+            throw new AudioGenerationException(`Voice ${voice} not supported`);
     }
 }
 

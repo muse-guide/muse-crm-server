@@ -5,7 +5,7 @@ export const nanoid_12 = () => nanoid(12)
 
 export const supportedLanguages = ["pl-PL", "en-GB", "es-ES"] as const
 
-export const supportedVoices = ["FEMALE_1", "MALE_1"] as const
+export const supportedVoices = ["FEMALE_1", "MALE_1", "FEMALE_2", "MALE_2"] as const
 
 export const resourceStatus = ["PROCESSING", "ACTIVE", "DEACTIVATED", "ERROR"] as const
 

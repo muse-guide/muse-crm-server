@@ -10,7 +10,6 @@ import {z} from "zod";
 import {articleService} from "./service/article";
 import {Exhibition} from "./model/exhibition";
 import {PaginatedDtoResults} from "./schema/common";
-import {logger} from "./common/logger";
 import {unlockSubscription} from "./common/exception-handler";
 
 /**

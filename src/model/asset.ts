@@ -18,7 +18,7 @@ export interface ImageAsset extends PrivateAsset, PublicAsset {
 export interface ThumbnailAsset extends PrivateAsset, PublicAsset {
 }
 
-export type Voice = "FEMALE_1" | "MALE_1"
+export type Voice = "FEMALE_1" | "MALE_1" | "FEMALE_2" | "MALE_2"
 
 export interface AudioInput {
     markup: string,

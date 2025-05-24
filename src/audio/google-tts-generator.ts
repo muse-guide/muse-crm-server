@@ -1,43 +1,53 @@
-import textToSpeech from '@google-cloud/text-to-speech';
+import textToSpeech, {TextToSpeechClient} from '@google-cloud/text-to-speech';
 import {AudioInput, Voice} from "../model/asset";
-import {google} from "@google-cloud/text-to-speech/build/protos/protos";
-import ISynthesisInput = google.cloud.texttospeech.v1.ISynthesisInput;
+import {AudioGenerationException} from "../common/exceptions";
+import {getSecureStringParameter} from "../common/functions";
 
-// Creates a client
-const client = new textToSpeech.TextToSpeechClient({
-    apiKey: "AIzaSyA5lR4o4ANhFocl8l4Jlu7Ue-fr99yI9ns",
-});
+const getClient = async (): Promise<TextToSpeechClient> => {
+    const apiKey = await getSecureStringParameter(process.env.GOOGLE_TTS_API_KEY_PARAMETER_NAME!!);
+    if (!apiKey) {
+        throw new AudioGenerationException("API key not found");
+    }
+
+    return new textToSpeech.TextToSpeechClient({
+        apiKey: apiKey,
+    });
+}
 
 const mapVoice = (voice: Voice): { voiceId: string, gender: "MALE" | "FEMALE" } => {
     switch (voice) {
-        case "MALE_1":
+        case "MALE_2":
             return {voiceId: "pl-PL-Chirp3-HD-Puck", gender: "MALE"}
-        case "FEMALE_1":
+        case "FEMALE_2":
             return {voiceId: "pl-PL-Chirp3-HD-Zephyr", gender: "FEMALE"}
+        default:
+            throw new AudioGenerationException(`Voice ${voice} not supported`);
     }
 }
 
-export async function generateWithGoogleTTS(input: AudioInput) {
+export async function generateWithGoogleTTS(input: AudioInput): Promise<Buffer> {
+    const client = await getClient();
     const voiceConfig = mapVoice(input.voice);
     const audioEncoding: "MP3" = "MP3";
     const request = {
         input: {
             text: input.markup,
         },
-        // Select the language and SSML voice gender (optional)
         voice: {
             voice: voiceConfig.voiceId,
             languageCode: input.lang,
             ssmlGender: voiceConfig.gender
         },
-        // select the type of audio encoding
         audioConfig: {
             audioEncoding: audioEncoding
         },
     };
 
-    // Performs the text-to-speech request
     const [response] = await client.synthesizeSpeech(request);
 
-    return response.audioContent;
+    if (!response.audioContent) {
+        throw new AudioGenerationException("No audio content returned from Google TTS");
+    }
+
+    return Buffer.from(response.audioContent as Uint8Array);
 }
