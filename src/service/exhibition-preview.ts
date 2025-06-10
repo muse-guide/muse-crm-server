@@ -42,7 +42,7 @@ const getExhibitionPreview = async (exhibitionId: string, lang: string): Promise
 
 const prepareExhibitionPreview = (lang: string, exhibition: Exhibition | null): ExhibitionPreview => {
     if (!exhibition || exhibition.langOptions.length < 1) {
-        throw new NotFoundException("Exhibition does not exist.")
+        throw new NotFoundException("apiError.exhibitionNotExist")
     }
 
     const requestedLangOption = exhibition.langOptions.find((opt: { lang: string; }) => opt.lang === lang)

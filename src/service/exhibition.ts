@@ -226,11 +226,11 @@ const getExhibitionForCustomer = async (exhibitionId: string, customerId: string
         .go()
 
     if (!exhibition || customerId !== exhibition.customerId) {
-        throw new NotFoundException("Exhibition does not exist.")
+        throw new NotFoundException("apiError.exhibitionNotExist")
     }
 
     if (exhibition.status !== "ACTIVE") {
-        throw new DataConflictException("Exhibition is not active.")
+        throw new DataConflictException("apiError.ehibitionNotActive")
     }
 
     return exhibition

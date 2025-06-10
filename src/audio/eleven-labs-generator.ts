@@ -10,12 +10,12 @@ const getClient = async (): Promise<ElevenLabsClient> => {
     try {
         const apiKey = await getSecureStringParameter(ELEVEN_LABS_API_KEY);
         if (!apiKey) {
-            throw new AudioGenerationException("API key not found");
+            throw new AudioGenerationException("apiError.audioGenerationNoApiKey");
         }
         return new ElevenLabsClient({apiKey});
     } catch (error) {
         console.error("Error retrieving parameter:", error);
-        throw new AudioGenerationException("Failed to retrieve API key");
+        throw new AudioGenerationException("apiError.audioGenerationFailedToRetrieveApiKey");
     }
 }
 
@@ -34,7 +34,7 @@ const mapVoice = (voice: Voice): string => {
         case "FEMALE_1":
             return "Sarah"
         default:
-            throw new AudioGenerationException(`Voice ${voice} not supported`);
+            throw new AudioGenerationException(`apiError.audioGenerationVoiceNotSupported`);
     }
 }
 

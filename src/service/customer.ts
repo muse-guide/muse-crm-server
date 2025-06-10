@@ -18,7 +18,7 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         .go()
 
     if (customer) {
-        throw new CustomerException(`Customer with id ${customerId} already exists.`, 409)
+        throw new CustomerException(`apiError.customerAlreadyExist`, 409)
     }
 
     const customerResponsePromise = CustomerDao
@@ -79,7 +79,7 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
     const {customer, subscription} = await getCustomerWithSubscription(customerId)
 
     if (subscription.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+        throw new CustomerException(`apiError.customerNoActiveSubscription`, 403)
     }
 
     await validateIfCanChangeSubscription(customerId, subscription.plan, newPlan)
@@ -130,22 +130,22 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
 
 const validateIfCanChangeSubscription = async (customerId: string, activePlan: SubscriptionPlanType, newPlan: SubscriptionPlanType): Promise<void> => {
     if (activePlan === newPlan) {
-        throw new CustomerException(`Customer ${customerId} already has ${newPlan} subscription active.`)
+        throw new CustomerException(`apiError.customerPlanAlreadyActive`)
     }
 
     const newSubscriptionPlan = configurationService.getSubscriptionPlan(newPlan)
     const customerResources = await getCustomerResources(customerId)
 
     if (newSubscriptionPlan.maxExhibitions < customerResources.exhibitionsCount) {
-        throw new CustomerException(`Customer ${customerId} has ${customerResources.exhibitionsCount} exhibitions, but ${newPlan} subscription allows at max ${newSubscriptionPlan.maxExhibitions}.`, 409)
+        throw new CustomerException(`apiError.customerMaxExhibitionCountReached`, 409)
     }
 
     if (newSubscriptionPlan.maxExhibits < customerResources.exhibitsCount) {
-        throw new CustomerException(`Customer ${customerId} has ${customerResources.exhibitsCount} exhibits, but ${newPlan} subscription allows at max ${newSubscriptionPlan.maxExhibits}.`, 409)
+        throw new CustomerException(`apiError.customerMaxExhibitCountReached`, 409)
     }
 
     if (newSubscriptionPlan.maxLanguages < customerResources.maxLanguages) {
-        throw new CustomerException(`Customer ${customerId} has items with ${customerResources.maxLanguages} languages, but ${newPlan} subscription allows at max ${newSubscriptionPlan.maxLanguages} per item.`, 409)
+        throw new CustomerException(`apiError.customerMaxLangOptionsReached`, 409)
     }
 }
 
@@ -217,11 +217,11 @@ const getCustomerWithSubscription = async (customerId: string): Promise<Customer
     const subscriptions = customerWithSubscriptionsResponseItem.data.subscription
 
     if (customers.length !== 1) {
-        throw new CustomerException(`Customer with id ${customerId} not found, or configured incorrectly.`)
+        throw new CustomerException(`apiError.customerNotExist`, 404)
     }
 
     if (customers[0].status === "DEACTIVATED") {
-        throw new CustomerException(`Customer ${customerId} is deactivated.`, 403)
+        throw new CustomerException(`apiError.customerDeactivated`, 403)
     }
 
     const currentSubscription = subscriptions.filter(subscription => {
@@ -232,11 +232,11 @@ const getCustomerWithSubscription = async (customerId: string): Promise<Customer
     })
 
     if (currentSubscription.length > 1) {
-        throw new CustomerException(`Configuration error. Customer ${customerId} has more than one active subscription.`)
+        throw new CustomerException(`apiError.customerConfigurationError`)
     }
 
     if (currentSubscription.length < 1) {
-        throw new CustomerException(`Customer ${customerId} has no active subscription.`)
+        throw new CustomerException(`apiError.customerNoActiveSubscription`, 403)
     }
 
     return {
@@ -255,27 +255,27 @@ const authorizeResourceCreationAndLock = async (customerId: string, resource: Ex
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
 
     if (subscription.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+        throw new CustomerException(`apiError.customerNoActiveSubscription`, 403)
     }
 
     if (subscription.tokenCount - tokensUsed < 0) {
-        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
+        throw new CustomerException(`apiError.customerNoTokensAvailable`, 403)
     }
 
     if (isInstitution(resource) && customerResources.institutionsCount > 0) {
-        throw new CustomerException(`Customer ${customerId} already has an institution.`, 403)
+        throw new CustomerException(`apiError.customerInstitutionAlreadyCreate`, 403)
     }
 
     if (isExhibition(resource) && subscriptionPlan.maxExhibitions <= customerResources.exhibitionsCount) {
-        throw new CustomerException(`Customer ${customerId} has reached the maximum number of exhibitions allowed by the subscription ${subscription.plan}.`, 403)
+        throw new CustomerException(`apiError.customerMaxExhibitionCountReached`, 403)
     }
 
     if (isExhibit(resource) && subscriptionPlan.maxExhibits <= customerResources.exhibitsCount) {
-        throw new CustomerException(`Customer ${customerId} has reached the maximum number of exhibits allowed by the subscription ${subscription.plan}.`, 403)
+        throw new CustomerException(`apiError.customerMaxExhibitCountReached`, 403)
     }
 
     if (resource.langOptions.length > subscriptionPlan.maxLanguages) {
-        throw new CustomerException(`Customer ${customerId} has reached the maximum number of languages for resource allowed by the subscription ${subscription.plan}.`, 403)
+        throw new CustomerException(`apiError.customerMaxLangOptionsReached`, 403)
     }
 
     // Lock subscription to prevent concurrent operations
@@ -292,15 +292,15 @@ const authorizeResourceUpdateAndLock = async (customerId: string, resource: Expo
     const subscriptionPlan = configurationService.getSubscriptionPlan(subscription.plan)
 
     if (subscription.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+        throw new CustomerException(`apiError.customerNoActiveSubscription`, 403)
     }
 
     if (subscription.tokenCount - tokensUsed < 0) {
-        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
+        throw new CustomerException(`apiError.customerNoTokensAvailable`, 403)
     }
 
     if (resource.langOptions.length > subscriptionPlan.maxLanguages) {
-        throw new CustomerException(`Customer ${customerId} has reached the maximum number of languages for resource allowed by the subscription ${subscription.plan}.`, 403)
+        throw new CustomerException(`apiError.customerMaxLangOptionsReached`, 403)
     }
 
     // Lock subscription to prevent concurrent operations
@@ -316,11 +316,11 @@ const authorizeAudioPreviewCreationAndLock = async (customerId: string, tokensUs
     const {customer, subscription} = await getCustomerWithSubscription(customerId)
 
     if (subscription.status !== "ACTIVE") {
-        throw new CustomerException(`Customer ${customerId} has no active subscription.`, 403)
+        throw new CustomerException(`apiError.customerNoActiveSubscription`, 403)
     }
 
     if (subscription.tokenCount - tokensUsed < 0) {
-        throw new CustomerException(`Customer ${customerId} has not enough tokens left.`, 403)
+        throw new CustomerException(`apiError.customerNoTokensAvailable`, 403)
     }
 
     // Lock subscription to prevent concurrent operations
@@ -334,7 +334,7 @@ const authorizeAudioPreviewCreationAndLock = async (customerId: string, tokensUs
 
 const unlockSubscription = async (subscriptionId: string | undefined): Promise<void> => {
     if (!subscriptionId) {
-        throw new CustomerException(`Subscription id is required.`, 400)
+        throw new CustomerException(`apiError.customerSubscriptionIdMissing`, 400)
     }
 
     const {data: subscription} = await SubscriptionDao
@@ -344,11 +344,11 @@ const unlockSubscription = async (subscriptionId: string | undefined): Promise<v
         .go()
 
     if (!subscription) {
-        throw new CustomerException(`Subscription ${subscriptionId} not found.`, 404)
+        throw new CustomerException(`apiError.customerSubscriptionNotFound`, 404)
     }
 
     if (subscription.status !== "LOCKED") {
-        throw new CustomerException(`Subscription ${subscriptionId} is not locked.`, 403)
+        throw new CustomerException(`apiError.customerSubscriptionNotLocked`, 403)
     }
 
     await SubscriptionDao

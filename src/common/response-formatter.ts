@@ -9,7 +9,7 @@ export const responseFormatter = (statusCode: number, response?: object) => {
     };
 };
 
-export const restHandleError = (err: unknown) => {
+export const restHandleError = (err: any) => {
     logger.error("Error:", err as Error);
     let errorResponse: BaseException = new InternalServerErrorException();
 
@@ -17,11 +17,16 @@ export const restHandleError = (err: unknown) => {
         errorResponse = err;
     }
     if (err instanceof ZodError) {
-        errorResponse = new BadRequestException(`Invalid request. Errors: ${err.errors.map(error => error.message).toString()}`)
+        errorResponse = new BadRequestException(`apiError.invalidRequest`)
     }
 
     return {
         statusCode: errorResponse.statusCode,
+        headers: {
+            "Content-Type": "text/plain",
+            "x-amzn-ErrorType": err.code
+        },
+        isBase64Encoded: false,
         body: JSON.stringify({
             message: errorResponse.message
         })
@@ -36,7 +41,7 @@ export const handleError = (err: unknown) => {
         errorResponse = err;
     }
     if (err instanceof ZodError) {
-        errorResponse = new BadRequestException(`Invalid request. Errors: [${err.errors.map(error => `path: ${error.path}, message: ${error.message}`).toString()}]`)
+        errorResponse = new BadRequestException(`apiError.invalidRequest`)
     }
 
     throw errorResponse

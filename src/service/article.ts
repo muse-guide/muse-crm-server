@@ -22,7 +22,7 @@ const processArticleImages = (markup?: string) => {
             const idRegex = /images\/(.*?)\?/g.exec(src);
             const imageId = idRegex ? idRegex[1] : undefined;
 
-            if (!imageId && !tmpImageId) throw new BadRequestException("Image id from valid source not found");
+            if (!imageId && !tmpImageId) throw new BadRequestException("apiError.imageInvalidImageId");
             image.setAttribute('src', imageId ?? tmpImageId ?? '');
         })
 

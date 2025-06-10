@@ -43,19 +43,13 @@ export class ConfigurationException extends BaseException {
 
 export class AudioGenerationException extends BaseException {
     constructor(message?: string) {
-        super(500, message ?? "Failed to generate audio.");
-    }
-}
-
-export class NotAuthorizedException extends BaseException {
-    constructor(message?: string) {
-        super(403, message ?? "Not authorized.");
+        super(500, message ?? "apiError.audioGenerationNoAudioGenerated");
     }
 }
 
 export class InternalServerErrorException extends BaseException {
     constructor(message?: string) {
-        const errorMessage = message ?? "Internal server error occurred."
+        const errorMessage = message ?? "apiError.unexpectedError"
         super(500, errorMessage);
     }
 }

@@ -15,7 +15,10 @@ const generateGetPreSignedUrlFor = async (input: GetPreSignedUrlInput) => {
     const key = `${input.customerId}/${input.assetType}/${input.assetId}`;
     const command = new GetObjectCommand({
         Bucket: privateAssetBucket,
-        Key: key
+        Key: key,
+        ResponseExpires: new Date(Date.now() + 7200 * 1000), // 2 hours
+        ResponseCacheControl: 'max-age=7200',
+        ResponseContentDisposition: `inline; filename="${input.assetId}"`,
     });
 
     return await getSignedUrl(s3Client, command, {expiresIn: 7200});

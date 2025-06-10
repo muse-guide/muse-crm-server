@@ -16,13 +16,16 @@ export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: strin
     const allEntriesLength = arr.map(i => i[key]).length
     const distinctEntriesLength = [...new Set(arr.map(i => i[key]))].length
 
-    if (allEntriesLength !== distinctEntriesLength) throw new BadRequestException(msg ?? "Array contains not unique entries")
+    if (allEntriesLength !== distinctEntriesLength) {
+        logger.error(`Validation failed: ${msg || `Entries for key ${key} are not unique.`}`);
+        throw new BadRequestException('apiError.entriesNotUnique')
+    }
 }
 
 export const validateAudioCharacterCount = (characters?: string): number => {
     if (!characters) return 0
     const billableCharacterCount = getBillableCharacterCount(characters);
-    if (billableCharacterCount > 2000) throw new BadRequestException("Audio exceeds character limit")
+    if (billableCharacterCount > 2000) throw new BadRequestException('apiError.audioCharacterCountExceeded')
 
     return billableCharacterCount
 }
@@ -54,7 +57,7 @@ const validateArticleCharacterCount = (markup: string) => {
 
     logger.info(`Article character count: ${textContent.length}`);
     if (textContent.length > 2000) {
-        throw new BadRequestException("Article exceeds character limit");
+        throw new BadRequestException('apiError.articleCharacterCountExceeded');
     }
 }
 
@@ -64,7 +67,7 @@ const validateAllowedTags = (markup: string) => {
 
     for (const tag of tags) {
         if (!allowedTags.has(tag)) {
-            throw new BadRequestException(`Tag <${tag}> is not allowed.`);
+            throw new BadRequestException('apiError.articleInvalidTag');
         }
     }
 };
@@ -76,10 +79,10 @@ export const validateYoutubeUrl = (markup: string) => {
     for (const iframe of iframes) {
         const src = iframe.getAttribute('src');
         if (!src) {
-            throw new BadRequestException(`Youtube iframe has no src attribute.`);
+            throw new BadRequestException(`apiError.youtubeIframeNoSrc`);
         }
         if (!src.startsWith('https://www.youtube-nocookie.com')) {
-            throw new BadRequestException(`Youtube iframe src is not a youtube url.`);
+            throw new BadRequestException(`apiError.youtubeIframeInvalidSrc`);
         }
     }
 }
@@ -91,10 +94,10 @@ const validateImageTags = (markup: string) => {
     for (const image of images) {
         const src = image.getAttribute('src');
         if (!src) {
-            throw new BadRequestException(`Image tag has no src attribute.`);
+            throw new BadRequestException(`apiError.imageNoSrcAttribute`);
         }
         if (!src.startsWith(privateAssetBucketUrl)) {
-            throw new BadRequestException(`Image from unknown source.`);
+            throw new BadRequestException(`apiError.imageInvalidSrcAttribute`);
         }
     }
 }

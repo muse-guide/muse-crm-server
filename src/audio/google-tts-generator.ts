@@ -6,7 +6,7 @@ import {getSecureStringParameter} from "../common/functions";
 const getClient = async (): Promise<TextToSpeechClient> => {
     const apiKey = await getSecureStringParameter(process.env.GOOGLE_TTS_API_KEY_PARAMETER_NAME!!);
     if (!apiKey) {
-        throw new AudioGenerationException("API key not found");
+        throw new AudioGenerationException("apiError.audioGenerationNoApiKey");
     }
 
     return new textToSpeech.TextToSpeechClient({
@@ -21,7 +21,7 @@ const mapVoice = (voice: Voice): { voiceId: string, gender: "MALE" | "FEMALE" } 
         case "FEMALE_2":
             return {voiceId: "pl-PL-Chirp3-HD-Zephyr", gender: "FEMALE"}
         default:
-            throw new AudioGenerationException(`Voice ${voice} not supported`);
+            throw new AudioGenerationException(`apiError.audioGenerationVoiceNotSupported`);
     }
 }
 
@@ -46,7 +46,7 @@ export async function generateWithGoogleTTS(input: AudioInput): Promise<Buffer> 
     const [response] = await client.synthesizeSpeech(request);
 
     if (!response.audioContent) {
-        throw new AudioGenerationException("No audio content returned from Google TTS");
+        throw new AudioGenerationException("apiError.audioGenerationNoAudioGenerated");
     }
 
     return Buffer.from(response.audioContent as Uint8Array);

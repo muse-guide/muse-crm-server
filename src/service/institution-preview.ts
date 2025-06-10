@@ -12,7 +12,7 @@ const getInstitutionPreview = async (institutionId: string, lang: string): Promi
         .go()
 
     if (!institution || institution.langOptions.length < 1) {
-        throw new NotFoundException("Institution does not exist.")
+        throw new NotFoundException("apiError.institutionNotExist")
     }
 
     const requestedLangOption = institution.langOptions.find((opt: { lang: string; }) => opt.lang === lang)

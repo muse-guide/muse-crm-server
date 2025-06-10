@@ -10,6 +10,7 @@ import {PutObjectCommand} from "@aws-sdk/client-s3";
 import {s3Client} from "./common/aws-clients";
 import {AudioInput} from "./model/asset";
 import {customerService} from "./service/customer";
+import {unlockSubscription} from "./common/exception-handler";
 
 const privateAssetBucket = process.env.CRM_ASSET_BUCKET
 
@@ -42,6 +43,8 @@ const generateAudioPreview = async (event: APIGatewayProxyEvent): Promise<APIGat
         }
         return responseFormatter(200, response)
     } catch (err) {
+        const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
+        await unlockSubscription(customerId, err)
         return restHandleError(err);
     }
 };

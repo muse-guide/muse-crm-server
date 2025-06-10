@@ -138,11 +138,11 @@ const getInstitutionInternal = async (institutionId: string, customerId: string)
         .go()
 
     if (!institution || customerId !== institution.customerId) {
-        throw new NotFoundException("Institution does not exist.")
+        throw new NotFoundException("apiError.institutionNotExist")
     }
 
     if (institution.status !== "ACTIVE") {
-        throw new DataConflictException("Institution is not active.")
+        throw new DataConflictException("apiError.institutionNotActive")
     }
 
     return institution
@@ -157,7 +157,7 @@ const findInstitutionForCustomer = async (customerId: string): Promise<Instituti
         .go()
 
     if (institutions.length > 1) {
-        throw new ConfigurationException("Multiple institutions found.")
+        throw new ConfigurationException("apiError.configurationMultipleInstitutionsFound")
     }
 
     if (!institutions || institutions.length === 0) {

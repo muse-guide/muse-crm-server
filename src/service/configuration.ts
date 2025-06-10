@@ -5,7 +5,7 @@ import {SubscriptionPlanType} from "../model/common";
 const getSubscriptionPlan = (name: SubscriptionPlanType): SubscriptionPlan => {
     const plan = configuration.subscriptionPlans.find(plan => plan.name === name);
     if (plan === undefined) {
-        throw new ConfigurationException(`Invalid subscription plan name: ${name}`);
+        throw new ConfigurationException(`apiError.configurationInvalidPlanName`);
     }
     return plan;
 }

@@ -47,7 +47,7 @@ const getExhibitPreviewsFor = async (pagination: Pagination, filters: ExhibitsFi
 
 const prepareExhibitPreview = (lang: string, exhibit: Exhibit | null): ExhibitPreview => {
     if (!exhibit || exhibit.langOptions.length < 1) {
-        throw new NotFoundException("Exhibit does not exist.")
+        throw new NotFoundException("apiError.exhibitNotExist")
     }
 
     const requestedLangOption = exhibit.langOptions.find((opt: { lang: string; }) => opt.lang === lang)

@@ -71,7 +71,7 @@ class PollyGenerator {
                 markup: input.markup
             })
 
-        if (!mp3) throw new AudioGenerationException("No generator found for selected Voice")
+        if (!mp3) throw new AudioGenerationException("apiError.audioGenerationVoiceNotSupported");
 
         return mp3
     }

@@ -4,7 +4,7 @@ import {CreateExhibitDto, UpdateExhibitDto} from "../schema/exhibit";
 import {undefinedIfEmpty} from "../common/functions";
 import {sfnClient} from "../common/aws-clients";
 import {StartExecutionCommand} from "@aws-sdk/client-sfn";
-import {NotFoundException} from "../common/exceptions";
+import {DataConflictException, NotFoundException} from "../common/exceptions";
 import {addLeadingZeros, prepareAssetForUpdate, prepareAssetsForCreation, prepareAssetsForDeletion} from "./common";
 import {ExposableMutation} from "../model/mutation";
 import {customerService} from "./customer";
@@ -84,11 +84,11 @@ const getExhibitForCustomer = async (exhibitId: string, customerId: string): Pro
         .go()
 
     if (!exhibit || customerId !== exhibit.customerId) {
-        throw new NotFoundException("Exhibit does not exist.")
+        throw new NotFoundException("apiError.exhibitNotExist")
     }
 
     if (exhibit.status !== "ACTIVE") {
-        throw new NotFoundException("Exhibit is not active.")
+        throw new DataConflictException("apiError.exhibitNotActive")
     }
 
     return exhibit

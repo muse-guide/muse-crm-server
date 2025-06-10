@@ -15,7 +15,7 @@ const generate = async (input: AudioInput) => {
         }
     } catch (error) {
         console.error("Error generating audio:", error);
-        throw new AudioGenerationException("Failed to generate audio");
+        throw new AudioGenerationException("apiError.audioGenerationNoAudioGenerated");
     }
 }
 
