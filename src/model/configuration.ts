@@ -1,4 +1,4 @@
-import {SubscriptionPeriod, SubscriptionPlanType} from "./common";
+import {SubscriptionPlanOption} from "./common";
 
 const envToNumber = (env: string | undefined, defaultValue: number) => {
     if (env === undefined) {
@@ -9,37 +9,80 @@ const envToNumber = (env: string | undefined, defaultValue: number) => {
 
 const subscriptionPlans: SubscriptionPlan[] = [
     {
+        type: "FREE",
         name: "FREE",
         durationMonths: undefined,
-        price: envToNumber(process.env.SUB_FREE_PRICE, 0),
-        maxExhibitions: envToNumber(process.env.SUB_FREE_MAX_EXHIBITIONS, 1),
-        maxExhibits: envToNumber(process.env.SUB_FREE_MAX_EXHIBITS, 10),
-        maxLanguages: envToNumber(process.env.SUB_FREE_MAX_LANGUAGES, 1),
-        tokenCount: envToNumber(process.env.SUB_FREE_TOKEN_COUNT, 5000),
-
+        price: 0,
+        maxExhibitions: 1,
+        maxExhibits: 5,
+        maxLanguages: 1,
+        tokenCount: 25_000,
     },
     {
+        type: "BASIC_MONTHLY",
         name: "BASIC",
         durationMonths: 1,
-        price: envToNumber(process.env.SUB_BASIC_PRICE, 5),
-        maxExhibitions: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITIONS, 2),
-        maxExhibits: envToNumber(process.env.SUB_BASIC_MAX_EXHIBITS, 20),
-        maxLanguages: envToNumber(process.env.SUB_BASIC_MAX_LANGUAGES, 2),
-        tokenCount: envToNumber(process.env.SUB_BASIC_TOKEN_COUNT, 10000),
+        price: 19,
+        maxExhibitions: 2,
+        maxExhibits: 25,
+        maxLanguages: 3,
+        tokenCount: 450_000,
     },
     {
+        type: "STANDARD_MONTHLY",
+        name: "STANDARD",
+        durationMonths: 1,
+        price: 35,
+        maxExhibitions: 5,
+        maxExhibits: 50,
+        maxLanguages: 5,
+        tokenCount: 900_000,
+    },
+    {
+        type: "PREMIUM_MONTHLY",
         name: "PREMIUM",
         durationMonths: 1,
-        price: envToNumber(process.env.SUB_PREMIUM_PRICE, 10),
-        maxExhibitions: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITIONS, 5),
-        maxExhibits: envToNumber(process.env.SUB_PREMIUM_MAX_EXHIBITS, 100),
-        maxLanguages: envToNumber(process.env.SUB_PREMIUM_MAX_LANGUAGES, 5),
-        tokenCount: envToNumber(process.env.SUB_PREMIUM_TOKEN_COUNT, 20000),
-    }
+        price: 69,
+        maxExhibitions: 10,
+        maxExhibits: 100,
+        maxLanguages: 5,
+        tokenCount: 1_800_000,
+    },
+    {
+        type: "BASIC_YEARLY",
+        name: "BASIC",
+        durationMonths: 12,
+        price: 139,
+        maxExhibitions: 2,
+        maxExhibits: 25,
+        maxLanguages: 3,
+        tokenCount: 2_700_000,
+    },
+    {
+        type: "STANDARD_YEARLY",
+        name: "STANDARD",
+        durationMonths: 12,
+        price: 245,
+        maxExhibitions: 5,
+        maxExhibits: 50,
+        maxLanguages: 5,
+        tokenCount: 5_400_000,
+    },
+    {
+        type: "PREMIUM_YEARLY",
+        name: "PREMIUM",
+        durationMonths: 12,
+        price: 489,
+        maxExhibitions: 10,
+        maxExhibits: 100,
+        maxLanguages: 5,
+        tokenCount: 10_800_000,
+    },
 ];
 
 export interface SubscriptionPlan {
-    name: SubscriptionPlanType,
+    type: SubscriptionPlanOption,
+    name: string,
     durationMonths?: number,
     price: number,
     maxExhibitions: number,

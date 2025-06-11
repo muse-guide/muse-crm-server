@@ -1,9 +1,9 @@
 import {ApplicationConfiguration, configuration, SubscriptionPlan} from "../model/configuration";
 import {ConfigurationException} from "../common/exceptions";
-import {SubscriptionPlanType} from "../model/common";
+import {SubscriptionPlanOption} from "../model/common";
 
-const getSubscriptionPlan = (name: SubscriptionPlanType): SubscriptionPlan => {
-    const plan = configuration.subscriptionPlans.find(plan => plan.name === name);
+const getSubscriptionPlan = (name: SubscriptionPlanOption): SubscriptionPlan => {
+    const plan = configuration.subscriptionPlans.find(plan => plan.type === name);
     if (plan === undefined) {
         throw new ConfigurationException(`apiError.configurationInvalidPlanName`);
     }

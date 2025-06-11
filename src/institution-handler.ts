@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
+import {nanoId, uuidId, validateArticleMarkup, validateUniqueEntries} from "./schema/validation";
 import {institutionService} from "./service/institution";
 import {InstitutionDto, UpsertInstitutionRequest, upsertInstitutionSchema} from "./schema/institution";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
@@ -24,7 +24,6 @@ const institutionCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewa
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 
@@ -83,7 +82,6 @@ export const institutionUpdate = async (event: APIGatewayProxyEvent): Promise<AP
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "name", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 

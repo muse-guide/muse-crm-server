@@ -1,11 +1,10 @@
 import {Exhibit} from "../model/exhibit";
-import {AudioAsset, getBillableCharacterCount, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset, ThumbnailAsset} from "../model/asset";
+import {AudioAsset, ImageAsset, PrivateAsset, PublicAsset, QrCodeAsset, ThumbnailAsset, Voice} from "../model/asset";
 import {Exhibition} from "../model/exhibition";
 import {EntityStructure} from "../model/common";
 import crypto from 'crypto';
 import {articleService} from "./article";
 import {Institution} from "../model/institution";
-import Any = jasmine.Any;
 
 const RESOURCE_NUMBER_LENGTH = 6
 
@@ -60,6 +59,25 @@ export const toQrCodeAsset = (resource: Exposable): QrCodeAsset => {
     }
 }
 
+export const determineBillableTokensCount = (markup: string, voice: Voice): number => {
+    let multiplier = 1;
+    switch (voice) {
+        // Premium voices
+        case "FEMALE_1":
+        case "MALE_1":
+            multiplier = 5;
+            break;
+
+        // Standard voices
+        case "FEMALE_2":
+        case "MALE_2":
+            multiplier = 1;
+            break;
+    }
+
+    return markup.length * multiplier;
+}
+
 export const toAudioAsset = (resource: Exposable): AudioAsset[] => {
     return resource.langOptions
         .filter(opt => opt.audio !== undefined)
@@ -68,7 +86,7 @@ export const toAudioAsset = (resource: Exposable): AudioAsset[] => {
             return {
                 privatePath: `${resource.customerId}/audios/${resource.id}_${opt.lang}`,
                 publicPath: `asset/${resource.id}/audios/${opt.lang}`,
-                billableTokens: getBillableCharacterCount(audio.markup),
+                billableTokens: determineBillableTokensCount(audio.markup, audio.voice),
                 markup: audio.markup,
                 voice: audio.voice,
                 lang: opt.lang
@@ -159,18 +177,4 @@ export function getCurrentDate() {
 
 export function getDateString(date: Date) {
     return date.toISOString().split('T')[0];
-}
-
-export function roundToPrecision(num: number, precision?: number) {
-    const precisionToUse = precision ?? 2;
-    return Math.round(num * Math.pow(10, precisionToUse)) / Math.pow(10, precisionToUse);
-}
-
-export function prepareLangOptions(langOptions: string[]) {
-    return langOptions.map(lang => {
-        return {
-            lang,
-            audio: undefined
-        }
-    })
 }

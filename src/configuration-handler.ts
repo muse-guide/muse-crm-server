@@ -25,8 +25,10 @@ const mapToConfigurationDto = (configuration: ApplicationConfiguration) => {
     return {
         subscriptionPlans: configuration.subscriptionPlans.map(plan => {
             return {
-                type: plan.name,
+                type: plan.type,
+                name: plan.name,
                 price: plan.price,
+                durationMonths: plan.durationMonths,
                 maxExhibitions: plan.maxExhibitions,
                 maxExhibits: plan.maxExhibits,
                 maxLanguages: plan.maxLanguages,

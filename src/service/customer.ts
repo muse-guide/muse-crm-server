@@ -1,5 +1,5 @@
 import {CustomerDao, CustomerResources, CustomerWithSubscription, Subscription, SubscriptionDao} from "../model/customer";
-import {SubscriptionPlanType} from "../model/common";
+import {SubscriptionPlanOption} from "../model/common";
 import {Exposable, getCurrentDate, getDateString, isExhibit, isExhibition, isInstitution} from "./common";
 import {UpdateCustomerDetailsDto} from "../schema/customer";
 import {Service} from "electrodb";
@@ -35,7 +35,7 @@ const createNewCustomer = async (customerId: string, email: string): Promise<Cus
         .create({
             subscriptionId: nanoid(),
             customerId: customerId,
-            plan: freeSubscriptionConfiguration.name,
+            plan: freeSubscriptionConfiguration.type,
             status: 'ACTIVE',
             tokenCount: freeSubscriptionConfiguration.tokenCount,
             startedAt: getCurrentDate(),
@@ -75,7 +75,7 @@ const updateCustomerDetails = async (customerId: string, updateCustomerDetails: 
     return getCustomerWithSubscription(customerId)
 }
 
-const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanType): Promise<CustomerWithSubscription> => {
+const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanOption): Promise<CustomerWithSubscription> => {
     const {customer, subscription} = await getCustomerWithSubscription(customerId)
 
     if (subscription.status !== "ACTIVE") {
@@ -109,7 +109,7 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
         .create({
             subscriptionId: nanoid(),
             customerId: customerId,
-            plan: newSubscriptionPlan.name,
+            plan: newSubscriptionPlan.type,
             status: "AWAITING_PAYMENT",
             tokenCount: newSubscriptionPlan.tokenCount,
             startedAt: startDate,
@@ -128,7 +128,7 @@ const changeSubscription = async (customerId: string, newPlan: SubscriptionPlanT
     }
 }
 
-const validateIfCanChangeSubscription = async (customerId: string, activePlan: SubscriptionPlanType, newPlan: SubscriptionPlanType): Promise<void> => {
+const validateIfCanChangeSubscription = async (customerId: string, activePlan: SubscriptionPlanOption, newPlan: SubscriptionPlanOption): Promise<void> => {
     if (activePlan === newPlan) {
         throw new CustomerException(`apiError.customerPlanAlreadyActive`)
     }

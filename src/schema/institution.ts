@@ -10,7 +10,7 @@ export const upsertInstitutionSchema = z.object({
         subtitle: z.string().max(200).optional(),
         article: z.string().min(1).optional(),
         audio: z.object({
-            markup: z.string().min(1),
+            markup: z.string().min(1).max(5000),
             voice: z.enum(supportedVoices),
         }).optional()
     })).nonempty(),

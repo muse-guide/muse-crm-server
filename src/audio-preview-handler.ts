@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {uuidId, validateAudioCharacterCount} from "./schema/validation";
+import {uuidId} from "./schema/validation";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
 import {APIGatewayProxyEvent, APIGatewayProxyResult} from "aws-lambda";
 import {audioPreviewRequest, AudioPreviewResponseDto} from "./schema/audio-preview";
@@ -11,6 +11,7 @@ import {s3Client} from "./common/aws-clients";
 import {AudioInput} from "./model/asset";
 import {customerService} from "./service/customer";
 import {unlockSubscription} from "./common/exception-handler";
+import {determineBillableTokensCount} from "./service/common";
 
 const privateAssetBucket = process.env.CRM_ASSET_BUCKET
 
@@ -18,7 +19,7 @@ const generateAudioPreview = async (event: APIGatewayProxyEvent): Promise<APIGat
     try {
         const customerId = uuidId.parse(event.requestContext.authorizer?.claims.sub)
         const request: AudioInput = audioPreviewRequest.parse(event.body)
-        const billableTokens = validateAudioCharacterCount(request.markup)
+        const billableTokens = determineBillableTokensCount(request.markup, request.voice)
 
         const {subscription} = await customerService.authorizeAudioPreviewCreationAndLock(customerId, billableTokens)
         const mp3 = await audioService.generate(request)

@@ -2,10 +2,8 @@ import {z} from "zod";
 import {BadRequestException} from "../common/exceptions";
 import {parse} from "node-html-parser";
 import {logger} from "../common/logger";
-import {getBillableCharacterCount} from "../model/asset";
 
 export const nanoId = z.string().length(8);
-export const nanoId_12 = z.string().length(12);
 export const uuidId = z.string().uuid();
 export const required = z.string();
 
@@ -20,14 +18,6 @@ export const validateUniqueEntries = (arr: { [key: string]: any; }[], key: strin
         logger.error(`Validation failed: ${msg || `Entries for key ${key} are not unique.`}`);
         throw new BadRequestException('apiError.entriesNotUnique')
     }
-}
-
-export const validateAudioCharacterCount = (characters?: string): number => {
-    if (!characters) return 0
-    const billableCharacterCount = getBillableCharacterCount(characters);
-    if (billableCharacterCount > 2000) throw new BadRequestException('apiError.audioCharacterCountExceeded')
-
-    return billableCharacterCount
 }
 
 export const validateArticleMarkup = (markup?: string) => {

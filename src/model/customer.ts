@@ -1,5 +1,5 @@
 import {Entity, EntityItem} from "electrodb";
-import {identityStatus, subscriptionPlanType, subscriptionStatus} from "./common";
+import {identityStatus, subscriptionPlanOption, subscriptionStatus} from "./common";
 import {dynamoClient} from "../common/aws-clients";
 
 const table = process.env.RESOURCE_TABLE_NAME!!;
@@ -128,7 +128,7 @@ export const SubscriptionDao = new Entity(
                 required: true,
             },
             plan: {
-                type: subscriptionPlanType,
+                type: subscriptionPlanOption,
                 required: true,
             },
             status: {

@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
+import {nanoId, uuidId, validateArticleMarkup, validateUniqueEntries} from "./schema/validation";
 import {ExhibitionsFilter, exhibitService} from "./service/exhibit";
 import {CreateExhibitDto, createExhibitSchema, ExhibitDto, updateExhibitSchema} from "./schema/exhibit";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
@@ -11,8 +11,6 @@ import {articleService} from "./service/article";
 import {Exhibit} from "./model/exhibit";
 import {convertStringToNumber} from "./service/common";
 import {PaginatedDtoResults} from "./schema/common";
-import {logger} from "./common/logger";
-import {customerService} from "./service/customer";
 import {unlockSubscription} from "./common/exception-handler";
 
 /**
@@ -28,7 +26,6 @@ const exhibitCreate = async (event: APIGatewayProxyEvent): Promise<APIGatewayPro
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 
@@ -150,7 +147,6 @@ export const exhibitUpdate = async (event: APIGatewayProxyEvent): Promise<APIGat
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 

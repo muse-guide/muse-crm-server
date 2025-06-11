@@ -1,5 +1,5 @@
 import {z} from "zod";
-import {subscriptionPlanType} from "../model/common";
+import {subscriptionPlanOption} from "../model/common";
 
 export interface CustomerDto {
     customerId: string
@@ -45,5 +45,5 @@ export const updateCustomerDetailsSchema = z.object({
 export type UpdateCustomerDetailsDto = z.infer<typeof updateCustomerDetailsSchema>
 
 export const updateSubscriptionSchema = z.object({
-    newPlan: z.enum(subscriptionPlanType)
+    newPlan: z.enum(subscriptionPlanOption)
 })

@@ -1,6 +1,6 @@
 import middy from "@middy/core";
 import httpJsonBodyParser from '@middy/http-json-body-parser'
-import {nanoId, uuidId, validateArticleMarkup, validateAudioCharacterCount, validateUniqueEntries} from "./schema/validation";
+import {nanoId, uuidId, validateArticleMarkup, validateUniqueEntries} from "./schema/validation";
 import {exhibitionService, ExhibitionsFilter} from "./service/exhibition";
 import {CreateExhibitionRequest, createExhibitionSchema, ExhibitionDto, updateExhibitionSchema} from "./schema/exhibition";
 import {responseFormatter, restHandleError} from "./common/response-formatter";
@@ -26,7 +26,6 @@ const exhibitionCreate = async (event: APIGatewayProxyEvent): Promise<APIGateway
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "id", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 
@@ -145,7 +144,6 @@ export const exhibitionUpdate = async (event: APIGatewayProxyEvent): Promise<API
         validateUniqueEntries(request.langOptions, "lang", "Language options not unique.")
         validateUniqueEntries(request.images, "name", "Image refs not unique.")
         request.langOptions.forEach(lang => {
-            validateAudioCharacterCount(lang.audio?.markup)
             validateArticleMarkup(lang.article)
         })
 

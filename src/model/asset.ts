@@ -38,19 +38,6 @@ const availableSsmlTags = [
 ]
 
 
-// This implementation reduce billable tokens by allowed SSML tags,
-// but for now we will not use it. Left here for future reference.
-//
-// export const getBillableCharacterCount = (markup: string): number => {
-//     let cleanedCharacters = markup;
-//     for (const tags in availableSsmlTags) {
-//         cleanedCharacters = cleanedCharacters.replaceAll(availableSsmlTags[tags], '');
-//     }
-//     return cleanedCharacters.length;
-// }
-export const getBillableCharacterCount = (markup: string): number => {
-    return markup.length;
-}
 
 export interface DeleteAsset {
     private?: string[],

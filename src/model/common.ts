@@ -11,11 +11,24 @@ export const resourceStatus = ["PROCESSING", "ACTIVE", "DEACTIVATED", "ERROR"] a
 
 export const identityStatus = ["ACTIVE", "DEACTIVATED"] as const
 export const subscriptionStatus = ["LOCKED", "ACTIVE", "AWAITING_PAYMENT", "DEACTIVATED"] as const
-export const invoiceStatus = ["ISSUED", "PAID", "OVERDUE"] as const
 
-export const subscriptionPlanType = ["FREE", "BASIC", "PREMIUM"] as const
-export type SubscriptionPlanType = "FREE" | "BASIC" | "PREMIUM"
-export type SubscriptionPeriod = "MONTHLY" | "ANNUAL" | "LIFETIME"
+export const subscriptionPlanOption = [
+    "FREE",
+    "BASIC_MONTHLY",
+    "STANDARD_MONTHLY",
+    "PREMIUM_MONTHLY",
+    "BASIC_YEARLY",
+    "STANDARD_YEARLY",
+    "PREMIUM_YEARLY"
+] as const
+export type SubscriptionPlanOption =
+    "FREE"
+    | "BASIC_MONTHLY"
+    | "STANDARD_MONTHLY"
+    | "PREMIUM_MONTHLY"
+    | "BASIC_YEARLY"
+    | "STANDARD_YEARLY"
+    | "PREMIUM_YEARLY";
 
 export interface Pagination {
     pageSize: number,
